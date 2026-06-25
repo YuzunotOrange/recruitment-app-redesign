@@ -10,6 +10,7 @@ import { EventsView } from "@/components/views/events-view"
 import { TimelineView } from "@/components/views/timeline-view"
 import { CalendarView } from "@/components/views/calendar-view"
 import { SettingsView } from "@/components/views/settings-view"
+import { useRequireAuth } from "@/lib/use-require-auth"
 
 const titles: Record<ViewKey, { en: string; ja: string }> = {
   dashboard: { en: "Dashboard", ja: "ダッシュボード" },
@@ -21,6 +22,7 @@ const titles: Record<ViewKey, { en: string; ja: string }> = {
 }
 
 export default function Page() {
+  useRequireAuth()
   const [view, setView] = useState<ViewKey>("dashboard")
 
   return (

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Sidebar, MobileNav, type ViewKey } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Bell, Globe, Palette, User, Shield, LogOut, Camera } from "lucide-react"
+import { useRequireAuth } from "@/lib/use-require-auth"
+import { signOut } from "@/lib/mock-auth"
 
 function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
   const [on, setOn] = useState(defaultOn)
@@ -66,11 +68,17 @@ const inputCls =
 
 export default function ProfilePage() {
   const router = useRouter()
+  useRequireAuth()
   const [view] = useState<ViewKey>("settings")
 
   const handleNav = (v: ViewKey) => {
     if (v === "settings") return
     router.push("/")
+  }
+
+  const handleSignOut = () => {
+    signOut()
+    router.replace("/auth/sign-in")
   }
 
   return (
@@ -83,7 +91,7 @@ export default function ProfilePage() {
             <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Profile</h1>
             <p className="text-xs text-muted-foreground">プロフィール</p>
           </div>
-          <Button variant="outline" size="lg">
+          <Button variant="outline" size="lg" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
             サインアウト
           </Button>

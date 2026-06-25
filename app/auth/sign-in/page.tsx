@@ -1,13 +1,16 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
+import { signIn } from "@/lib/mock-auth"
 
 export default function SignInPage() {
+  const router = useRouter()
   const [showPw, setShowPw] = useState(false)
 
   return (
@@ -23,7 +26,14 @@ export default function SignInPage() {
         </>
       }
     >
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          signIn()
+          router.push("/")
+        }}
+      >
         <AuthField
           label="メールアドレス"
           ja="Email"
