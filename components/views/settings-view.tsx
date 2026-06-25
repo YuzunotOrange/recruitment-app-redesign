@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
-import { Bell, Globe, Palette, User, Info } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Bell, Globe, Palette, User, Info, Shield, LogOut } from "lucide-react"
+import { getCurrentUser, logout, type CurrentUser } from "@/lib/auth"
 
 function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
   const [on, setOn] = useState(defaultOn)
@@ -66,8 +68,77 @@ const meta = [
 ]
 
 export function SettingsView() {
+  const router = useRouter()
+  const [user, setUser] = useState<CurrentUser | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [signingOut, setSigningOut] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    getCurrentUser()
+      .then((u) => {
+        if (!active) return
+        if (!u) {
+          router.replace("/auth/sign-in")
+          return
+        }
+        setUser(u)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (!active) return
+        router.replace("/auth/sign-in")
+      })
+    return () => {
+      active = false
+    }
+  }, [router])
+
+  const handleLogout = async () => {
+    setSigningOut(true)
+    try {
+      await logout()
+    } finally {
+      localStorage.removeItem("mock-auth")
+      router.replace("/auth/sign-in")
+    }
+  }
+
   return (
     <div className="max-w-2xl space-y-4">
+      <Section icon={Shield} title="Account" ja="アカウント">
+        {loading ? (
+          <Row label="読み込み中…" ja="Loading">
+            <span className="text-sm text-muted-foreground">—</span>
+          </Row>
+        ) : (
+          <>
+            <Row label="名前" ja="Name">
+              <span className="text-sm text-foreground">{user?.name || "—"}</span>
+            </Row>
+            <Row label="メール" ja="Email">
+              <span className="text-sm text-foreground">{user?.email || "—"}</span>
+            </Row>
+            <Row label="卒業年" ja="Graduation year">
+              <span className="text-sm text-foreground">{user?.graduationYear || "—"}</span>
+            </Row>
+            <Row label="パスワード" ja="Password">
+              <span className="text-sm tracking-widest text-foreground">••••••••</span>
+            </Row>
+            <div className="px-5 py-3.5">
+              <button
+                onClick={handleLogout}
+                disabled={signingOut}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+              >
+                <LogOut className="h-4 w-4" />
+                {signingOut ? "サインアウト中…" : "サインアウト"}
+              </button>
+            </div>
+          </>
+        )}
+      </Section>
+
       <Section icon={User} title="Profile" ja="プロフィール">
         <Row label="表示名" ja="Display name">
           <input
