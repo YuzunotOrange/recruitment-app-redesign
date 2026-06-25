@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Sidebar, MobileNav, type ViewKey } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Bell, Globe, Palette, User, Shield, LogOut, Camera } from "lucide-react"
@@ -64,11 +65,17 @@ const inputCls =
   "rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/40"
 
 export default function ProfilePage() {
+  const router = useRouter()
   const [view] = useState<ViewKey>("settings")
+
+  const handleNav = (v: ViewKey) => {
+    if (v === "settings") return
+    router.push("/")
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar active={view} onChange={() => {}} />
+      <Sidebar active={view} onChange={handleNav} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-5 py-4 backdrop-blur md:px-8">
@@ -82,7 +89,7 @@ export default function ProfilePage() {
           </Button>
         </header>
 
-        <MobileNav active={view} onChange={() => {}} />
+        <MobileNav active={view} onChange={handleNav} />
 
         <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
           <div className="mx-auto max-w-2xl space-y-5">
@@ -128,6 +135,9 @@ export default function ProfilePage() {
               </Row>
               <Row label="新しいパスワード" ja="New password">
                 <input type="password" placeholder="8文字以上" className={inputCls} />
+              </Row>
+              <Row label="新しいパスワード（確認）" ja="Confirm new password">
+                <input type="password" placeholder="もう一度入力" className={inputCls} />
               </Row>
               <div className="flex justify-end px-5 py-3.5">
                 <Button size="sm">パスワードを変更</Button>
