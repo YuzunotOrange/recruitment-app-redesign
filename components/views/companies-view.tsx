@@ -12,6 +12,7 @@ import {
 } from "@/lib/data"
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
+import { SplitDateInput } from "@/components/split-date-input"
 import { PriorityBadge, Stars, StatusBadge } from "@/components/status-badge"
 
 type ApiCompany = {
@@ -336,11 +337,11 @@ export function CompaniesView() {
             max={5}
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           />
-          <input
+          <SplitDateInput
             value={form.es_deadline}
-            onChange={(event) => setForm((current) => ({ ...current, es_deadline: event.target.value }))}
-            type="date"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            onChange={(deadline) => setForm((current) => ({ ...current, es_deadline: deadline }))}
+            ariaLabel="ES deadline"
+            className="lg:col-span-2"
           />
           <select
             value={form.status}
