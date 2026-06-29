@@ -106,11 +106,11 @@ Compose uses SQLite locally through the named volume `backend-sqlite-data`. Post
 
 Container environment variables:
 
-- `ENVIRONMENT`: `development` locally, `production` on AWS.
+- `ENVIRONMENT`: `development` locally, `production` on AWS/Render.
 - `DATABASE_URL`: SQLite locally, PostgreSQL URL in production.
 - `JWT_SECRET_KEY`: required for containers and production; use a long random value.
 - `FRONTEND_ORIGIN`: frontend origin allowed by CORS.
-- `PORT`: optional container port for uvicorn, defaults to `8000`.
+- `PORT`: optional container port for uvicorn, defaults to `8000`. Render provides this automatically.
 
 ## Production deployment notes
 
@@ -129,6 +129,70 @@ Notes:
 - In non-local environments, CORS allows only `FRONTEND_ORIGIN`.
 - `JWT_SECRET_KEY` is required outside local development.
 - Alembic migrations are not configured yet. The current app creates tables at startup with SQLAlchemy metadata.
+
+## Render deployment
+
+The backend Dockerfile is compatible with Render Web Services. It starts uvicorn on `0.0.0.0` and respects Render's `PORT` environment variable:
+
+```text
+uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+```
+
+Recommended Render settings:
+
+- Service type: Web Service
+- Runtime: Docker
+- Root Directory: `backend`
+- Dockerfile Path: `backend/Dockerfile` if deploying from the repository root, or `Dockerfile` if the Render root directory is already `backend`
+- Health Check Path: `/health`
+
+Required Render environment variables:
+
+```text
+ENVIRONMENT=production
+DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
+FRONTEND_ORIGIN=https://your-frontend-domain.example.com
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+```
+
+Notes:
+
+- Do not set `PORT` manually unless Render asks for it; Render injects it at runtime.
+- `DATABASE_URL` may point to Supabase PostgreSQL or another PostgreSQL provider.
+- In production, CORS allows only `FRONTEND_ORIGIN`, so set it to the exact deployed frontend origin.
+- After deployment, verify `https://your-render-service.onrender.com/health` returns `{"status":"ok"}`.
+
+## Supabase PostgreSQL
+
+The backend can use Supabase PostgreSQL in production through `DATABASE_URL`. SQLite remains the default when `DATABASE_URL` is not set.
+
+To obtain a Supabase database URL:
+
+1. Open your Supabase project dashboard.
+2. Go to the database connection settings.
+3. Copy a PostgreSQL connection string. The pooled connection string is usually a good fit for deployed web apps.
+4. Replace the password placeholder with your database password.
+5. Keep `sslmode=require` in the URL, or append `?sslmode=require` if it is not present.
+
+Example `.env` for Supabase:
+
+```text
+ENVIRONMENT=production
+DATABASE_URL=postgresql://postgres.your-project-ref:your-password@aws-0-your-region.pooler.supabase.com:6543/postgres?sslmode=require
+FRONTEND_ORIGIN=https://your-frontend-domain.example.com
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+```
+
+Start FastAPI against Supabase:
+
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign\backend
+Copy-Item .env.example .env
+# Edit .env with your Supabase DATABASE_URL, FRONTEND_ORIGIN, and JWT_SECRET_KEY.
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+On first startup, `Base.metadata.create_all()` creates the required `users`, `companies`, and `events` tables if they do not already exist. Alembic migrations are intentionally not configured yet.
 
 ## API smoke check
 

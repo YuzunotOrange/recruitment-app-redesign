@@ -147,20 +147,26 @@ export const internships: Internship[] = [
 
 // ---------- Helpers ----------
 
-export const TODAY = new Date("2026-06-25")
+export function parseLocalDate(dateIso: string) {
+  const [year, month, day] = dateIso.split("-").map(Number)
+  if (!year || !month || !day) return new Date(dateIso)
+  return new Date(year, month - 1, day)
+}
+
+export const TODAY = parseLocalDate("2026-06-25")
 
 export function companyName(id: string) {
   return companies.find((c) => c.id === id)?.name ?? "—"
 }
 
 export function daysUntil(dateIso: string, from: Date = TODAY) {
-  const d = new Date(dateIso)
+  const d = parseLocalDate(dateIso)
   const diff = Math.ceil((d.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
   return diff
 }
 
 export function formatDate(dateIso: string) {
-  const d = new Date(dateIso)
+  const d = parseLocalDate(dateIso)
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 

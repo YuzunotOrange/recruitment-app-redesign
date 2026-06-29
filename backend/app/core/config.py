@@ -1,7 +1,8 @@
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 LOCAL_JWT_SECRET_KEY = "local-development-secret-change-before-production"
@@ -16,9 +17,19 @@ class Settings(BaseSettings):
     jwt_secret_key: str | None = None
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
-    backend_cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    backend_cors_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql://", 1)
+        return value
 
     @field_validator("backend_cors_origins", mode="before")
     @classmethod
