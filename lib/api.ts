@@ -1,5 +1,17 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
+const LOCAL_API_BASE_URL = "http://127.0.0.1:8000"
+const PRODUCTION_API_BASE_URL = "https://recruitment-app-redesign.onrender.com"
 const TOKEN_KEY = "access_token"
+
+function getApiBaseUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL
+  if (configuredUrl) return configuredUrl.replace(/\/$/, "")
+
+  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
+    return PRODUCTION_API_BASE_URL
+  }
+
+  return LOCAL_API_BASE_URL
+}
 
 export class ApiError extends Error {
   status: number
@@ -42,7 +54,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     headers.set("Authorization", `Bearer ${token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     headers,
   })
