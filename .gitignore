@@ -5,6 +5,11 @@ __v0_jsx-dev-runtime.ts
 .snowflake/
 .v0-trash/
 .vercel/
+test-results/
+playwright-report/
+blob-report/
+tsconfig.tsbuildinfo
+*.log
 
 # Environment variables
 .env*.local

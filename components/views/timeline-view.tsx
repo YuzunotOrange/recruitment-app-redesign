@@ -1,157 +1,201 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { internships, companyName, priorityMeta, internStatusMeta } from "@/lib/data"
-import { PriorityBadge } from "@/components/status-badge"
+import { useEffect, useMemo, useState } from "react"
+import { apiRequest } from "@/lib/api"
+import { formatCalendarMonth, text, useLanguagePreference } from "@/lib/language"
 
-const DAY = 1000 * 60 * 60 * 24
+type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "other"
 
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+type ApiEvent = {
+  id: number
+  company_name: string | null
+  title: string
+  start_date: string
+  end_date: string
+  type: EventType
 }
 
-const barTone: Record<string, string> = {
-  danger: "bg-destructive",
-  warning: "bg-warning",
-  info: "bg-accent",
-  neutral: "bg-primary",
+const DAY = 1000 * 60 * 60 * 24
+const COL = 34
+const LABEL_WIDTH = "clamp(12rem, 26vw, 17.5rem)"
+
+const typeTone: Record<EventType, string> = {
+  briefing: "bg-accent",
+  interview: "bg-accent",
+  test: "bg-warning",
+  deadline: "bg-destructive",
+  intern: "bg-success",
+  other: "bg-primary",
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function safeDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number)
+  const date = year && month && day ? new Date(year, month - 1, day) : new Date(value)
+  return Number.isNaN(date.getTime()) ? new Date() : date
 }
 
 export function TimelineView() {
-  const [scope] = useState<"intern">("intern")
+  const [events, setEvents] = useState<ApiEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const language = useLanguagePreference()
+
+  useEffect(() => {
+    let active = true
+
+    async function loadEvents() {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const data = await apiRequest<ApiEvent[]>("/events")
+        if (active) setEvents(data)
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load timeline.")
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    loadEvents()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const rows = useMemo(
+    () => [...events].sort((a, b) => a.start_date.localeCompare(b.start_date) || a.title.localeCompare(b.title)),
+    [events],
+  )
 
   const { days, rangeStart, totalDays, months } = useMemo(() => {
-    const starts = internships.map((i) => new Date(i.start).getTime())
-    const ends = internships.map((i) => new Date(i.end).getTime())
+    const today = startOfDay(new Date())
+
+    if (rows.length === 0) {
+      const rangeStart = new Date(today.getTime() - 2 * DAY)
+      const totalDays = 14
+      const days = Array.from({ length: totalDays }, (_, index) => new Date(rangeStart.getTime() + index * DAY))
+      return { days, rangeStart, totalDays, months: [{ label: formatCalendarMonth(today, language), span: totalDays }] }
+    }
+
+    const starts = rows.map((event) => startOfDay(safeDate(event.start_date)).getTime())
+    const ends = rows.map((event) => startOfDay(safeDate(event.end_date || event.start_date)).getTime())
     const min = startOfDay(new Date(Math.min(...starts)))
     const max = startOfDay(new Date(Math.max(...ends)))
-    // pad a couple days
     const rangeStart = new Date(min.getTime() - 2 * DAY)
-    const totalDays = Math.round((max.getTime() - rangeStart.getTime()) / DAY) + 3
-    const days = Array.from({ length: totalDays }, (_, idx) => new Date(rangeStart.getTime() + idx * DAY))
-    // month spans
+    const totalDays = Math.max(Math.round((max.getTime() - rangeStart.getTime()) / DAY) + 3, 14)
+    const days = Array.from({ length: totalDays }, (_, index) => new Date(rangeStart.getTime() + index * DAY))
     const months: { label: string; span: number }[] = []
-    days.forEach((d) => {
-      const label = `${d.getFullYear()}年${d.getMonth() + 1}月`
+
+    days.forEach((day) => {
+      const label = formatCalendarMonth(day, language)
       const last = months[months.length - 1]
       if (last && last.label === label) last.span += 1
       else months.push({ label, span: 1 })
     })
+
     return { days, rangeStart, totalDays, months }
-  }, [scope])
-
-  const rows = useMemo(
-    () => [...internships].sort((a, b) => a.rank - b.rank || a.start.localeCompare(b.start)),
-    [],
-  )
-
-  const COL = 34 // px per day
-  const LABEL = 280
+  }, [language, rows])
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-4 rounded-sm bg-accent" /> 開催期間
+          <span className="h-2.5 w-4 rounded-sm bg-accent" />
+          {text(language, { en: "Duration", ja: "開催期間" })}
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-px bg-destructive" /> 本日 (6/25)
-        </span>
-        <span className="ml-auto">インターン日程 · Gantt</span>
+        <span className="ml-auto">{text(language, { en: "Events timeline - Gantt", ja: "イベントタイムライン - ガント" })}</span>
       </div>
+
+      {error && <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-4 text-sm text-destructive">{error}</div>}
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="overflow-x-auto">
-          <div style={{ minWidth: LABEL + totalDays * COL }}>
-            {/* Month header */}
+          <div style={{ minWidth: `calc(${LABEL_WIDTH} + ${totalDays * COL}px)` }}>
             <div className="flex border-b border-border bg-primary text-primary-foreground">
-              <div
-                className="shrink-0 px-4 py-2 text-xs font-semibold"
-                style={{ width: LABEL }}
-              >
-                プログラム / 企業
+              <div className="shrink-0 px-4 py-2 text-xs font-semibold" style={{ width: LABEL_WIDTH }}>
+                {text(language, { en: "Event / Company", ja: "イベント / 企業" })}
               </div>
               <div className="flex">
-                {months.map((m, i) => (
+                {months.map((month, index) => (
                   <div
-                    key={i}
+                    key={`${month.label}-${index}`}
                     className="border-l border-primary-foreground/20 px-2 py-2 text-xs font-medium"
-                    style={{ width: m.span * COL }}
+                    style={{ width: month.span * COL }}
                   >
-                    {m.label}
+                    {month.label}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Day header */}
             <div className="flex border-b border-border bg-muted/60">
-              <div className="shrink-0" style={{ width: LABEL }} />
+              <div className="shrink-0" style={{ width: LABEL_WIDTH }} />
               <div className="flex">
-                {days.map((d, i) => {
-                  const weekend = d.getDay() === 0 || d.getDay() === 6
+                {days.map((day, index) => {
+                  const weekend = day.getDay() === 0 || day.getDay() === 6
                   return (
                     <div
-                      key={i}
+                      key={index}
                       className={`flex flex-col items-center justify-center border-l border-border py-1 text-[10px] ${
                         weekend ? "bg-destructive/5 text-destructive" : "text-muted-foreground"
                       }`}
                       style={{ width: COL }}
                     >
-                      <span className="font-medium tabular-nums">{d.getDate()}</span>
+                      <span className="font-medium tabular-nums">{day.getDate()}</span>
                     </div>
                   )
                 })}
               </div>
             </div>
 
-            {/* Rows */}
-            <div>
-              {rows.map((i, idx) => {
-                const s = startOfDay(new Date(i.start))
-                const e = startOfDay(new Date(i.end))
-                const offset = Math.round((s.getTime() - rangeStart.getTime()) / DAY)
-                const span = Math.round((e.getTime() - s.getTime()) / DAY) + 1
-                const tone = priorityMeta[i.priority].tone
+            {loading ? (
+              <div className="px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "Loading timeline...", ja: "タイムラインを読み込み中..." })}</div>
+            ) : rows.length === 0 ? (
+              <div className="px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "No timeline items yet.", ja: "タイムライン項目はまだありません。" })}</div>
+            ) : (
+              rows.map((event, index) => {
+                const start = startOfDay(safeDate(event.start_date))
+                const end = startOfDay(safeDate(event.end_date || event.start_date))
+                const offset = Math.max(Math.round((start.getTime() - rangeStart.getTime()) / DAY), 0)
+                const span = Math.max(Math.round((end.getTime() - start.getTime()) / DAY) + 1, 1)
+
                 return (
-                  <div
-                    key={i.id}
-                    className={`flex items-center ${idx % 2 ? "bg-muted/20" : ""} hover:bg-muted/40`}
-                  >
-                    <div
-                      className="flex shrink-0 items-center gap-2 px-4 py-2.5"
-                      style={{ width: LABEL }}
-                    >
-                      <PriorityBadge priority={i.priority} />
+                  <div key={event.id} className={`flex items-center ${index % 2 ? "bg-muted/20" : ""} hover:bg-muted/40`}>
+                    <div className="flex shrink-0 items-center gap-2 px-4 py-2.5" style={{ width: LABEL_WIDTH }}>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground">{i.program}</p>
-                        <p className="truncate text-xs text-muted-foreground">{companyName(i.companyId)}</p>
+                        <p className="truncate text-sm font-medium text-foreground">{event.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">{event.company_name ?? text(language, { en: "No company", ja: "企業なし" })}</p>
                       </div>
                     </div>
                     <div className="relative flex h-12 items-center" style={{ width: totalDays * COL }}>
-                      {/* weekend grid */}
-                      {days.map((d, di) => {
-                        const weekend = d.getDay() === 0 || d.getDay() === 6
+                      {days.map((day, dayIndex) => {
+                        const weekend = day.getDay() === 0 || day.getDay() === 6
                         return (
                           <div
-                            key={di}
+                            key={dayIndex}
                             className={`h-full border-l border-border/60 ${weekend ? "bg-destructive/5" : ""}`}
                             style={{ width: COL }}
                           />
                         )
                       })}
                       <div
-                        className={`absolute flex h-6 items-center rounded-md px-2 text-[10px] font-medium text-primary-foreground shadow-sm ${barTone[tone]}`}
-                        style={{ left: offset * COL + 2, width: span * COL - 4 }}
-                        title={`${i.program} (${i.start} – ${i.end})`}
+                        className={`absolute flex h-6 items-center rounded-md px-2 text-[10px] font-medium text-primary-foreground shadow-sm ${typeTone[event.type]}`}
+                        style={{ left: offset * COL + 2, width: Math.max(span * COL - 4, 28) }}
+                        title={`${event.title} (${event.start_date} - ${event.end_date})`}
                       >
-                        <span className="truncate">{internStatusMeta[i.status].ja}</span>
+                        <span className="truncate">{event.type}</span>
                       </div>
                     </div>
                   </div>
                 )
-              })}
-            </div>
+              })
+            )}
           </div>
         </div>
       </div>

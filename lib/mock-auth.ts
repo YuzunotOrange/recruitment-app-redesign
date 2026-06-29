@@ -1,16 +1,13 @@
-const KEY = "mock-auth"
+import { getAccessToken, login, logout } from "@/lib/auth"
 
 export function isAuthed(): boolean {
-  if (typeof window === "undefined") return false
-  return localStorage.getItem(KEY) === "1"
+  return Boolean(getAccessToken())
 }
 
-export function signIn() {
-  if (typeof window === "undefined") return
-  localStorage.setItem(KEY, "1")
+export async function signIn(email: string, password: string) {
+  return login({ email, password })
 }
 
 export function signOut() {
-  if (typeof window === "undefined") return
-  localStorage.removeItem(KEY)
+  logout()
 }

@@ -1,72 +1,94 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
+import { register } from "@/lib/auth"
+import { copy, text, useLanguagePreference } from "@/lib/language"
 
 export default function SignUpPage() {
+  const router = useRouter()
+  const language = useLanguagePreference()
   const [showPw, setShowPw] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   return (
     <AuthLayout
-      title="アカウント作成"
-      subtitle="Create your account to start tracking"
+      title={text(language, copy.signUp)}
+      subtitle={text(language, copy.signUpSubtitle)}
       footer={
         <>
-          既にアカウントをお持ちですか？{" "}
+          {text(language, copy.haveAccount)}{" "}
           <Link href="/auth/sign-in" className="font-medium text-accent hover:underline">
-            サインイン
+            {text(language, copy.signIn)}
           </Link>
         </>
       }
     >
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        <AuthField label="お名前" ja="Name" placeholder="就活 太郎" autoComplete="name" />
+      <form
+        className="space-y-4"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          setError(null)
+          setIsSubmitting(true)
+
+          const form = new FormData(event.currentTarget)
+          const name = String(form.get("name") ?? "")
+          const email = String(form.get("email") ?? "")
+          const password = String(form.get("password") ?? "")
+
+          try {
+            await register({ name, email, password, graduation_year: 2027 })
+            router.push("/")
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Sign up failed.")
+          } finally {
+            setIsSubmitting(false)
+          }
+        }}
+      >
+        <AuthField label="Name" ja="氏名" name="name" placeholder="Yamada Taro" autoComplete="name" required />
         <AuthField
-          label="メールアドレス"
-          ja="Email"
+          label="Email"
+          ja="メールアドレス"
+          name="email"
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
+          required
         />
         <AuthField
-          label="パスワード"
-          ja="Password"
+          label="Password"
+          ja="パスワード"
+          name="password"
           type={showPw ? "text" : "password"}
-          placeholder="8文字以上"
+          placeholder="8 characters or more"
           autoComplete="new-password"
+          required
           rightSlot={
             <button
               type="button"
-              onClick={() => setShowPw((v) => !v)}
+              onClick={() => setShowPw((value) => !value)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={showPw ? "パスワードを隠す" : "パスワードを表示"}
+              aria-label={showPw ? "Hide password" : "Show password"}
             >
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           }
         />
-        <p className="text-xs text-muted-foreground">
-          パスワードは8文字以上で、英数字を含めてください。
-        </p>
+        <p className="text-xs text-muted-foreground">{text(language, copy.passwordHint)}</p>
         <label className="flex items-start gap-2 text-sm text-muted-foreground">
           <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-border accent-primary" />
-          <span>
-            <Link href="#" className="font-medium text-accent hover:underline">
-              利用規約
-            </Link>{" "}
-            および{" "}
-            <Link href="#" className="font-medium text-accent hover:underline">
-              プライバシーポリシー
-            </Link>{" "}
-            に同意します
-          </span>
+          <span>{text(language, copy.termsAgree)}</span>
         </label>
-        <Button type="submit" size="lg" className="w-full">
-          アカウントを作成
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          {text(language, copy.signUp)}
         </Button>
       </form>
     </AuthLayout>

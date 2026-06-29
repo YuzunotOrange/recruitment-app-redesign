@@ -2,21 +2,24 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Globe, Palette, User, Info, Shield, LogOut } from "lucide-react"
-import { getCurrentUser, logout, type CurrentUser } from "@/lib/auth"
+import { Bell, Globe, Info, LogOut, Palette, User } from "lucide-react"
+import { PasswordChangeForm } from "@/components/password-change-form"
+import { Button } from "@/components/ui/button"
+import { getCurrentUser, logout, type User as AuthUser } from "@/lib/auth"
+import { copy, secondaryText, setLanguagePreference, text, useLanguagePreference, type LanguageMode } from "@/lib/language"
 
 function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
   const [on, setOn] = useState(defaultOn)
   return (
     <button
-      onClick={() => setOn((v) => !v)}
+      onClick={() => setOn((value) => !value)}
       role="switch"
       aria-checked={on}
       className={`relative h-6 w-11 rounded-full transition-colors ${on ? "bg-primary" : "bg-muted-foreground/30"}`}
     >
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${
-          on ? "translate-x-[22px]" : "translate-x-0.5"
+        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${
+          on ? "translate-x-5" : "translate-x-0"
         }`}
       />
     </button>
@@ -26,12 +29,12 @@ function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
 function Section({
   icon: Icon,
   title,
-  ja,
+  subtitle,
   children,
 }: {
   icon: React.ElementType
   title: string
-  ja: string
+  subtitle?: string
   children: React.ReactNode
 }) {
   return (
@@ -40,7 +43,7 @@ function Section({
         <Icon className="h-4 w-4 text-accent" />
         <div>
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          <p className="text-xs text-muted-foreground">{ja}</p>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
       <div className="divide-y divide-border">{children}</div>
@@ -48,151 +51,136 @@ function Section({
   )
 }
 
-function Row({ label, ja, children }: { label: string; ja: string; children: React.ReactNode }) {
+function Row({ label, subtitle, children }: { label: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3.5">
-      <div>
+    <div className="flex flex-col items-stretch gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground">{ja}</p>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
     </div>
   )
 }
 
+const inputCls =
+  "w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-70 sm:w-64"
+
 const meta = [
   { k: "Version", v: "v3.2 Pro" },
-  { k: "作成日 / Created", v: "2026-06-16" },
-  { k: "最終更新日 / Updated", v: "2026-06-25" },
-  { k: "データ / Data", v: "20社 · 5イベント · 19インターン" },
+  { k: "Created", v: "2026-06-16" },
+  { k: "Updated", v: "2026-06-25" },
+  { k: "Data source", v: "FastAPI + SQLite" },
 ]
 
 export function SettingsView() {
   const router = useRouter()
-  const [user, setUser] = useState<CurrentUser | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const [signingOut, setSigningOut] = useState(false)
+  const language = useLanguagePreference()
 
   useEffect(() => {
     let active = true
-    getCurrentUser()
-      .then((u) => {
-        if (!active) return
-        if (!u) {
+
+    async function loadUser() {
+      setLoading(true)
+
+      try {
+        const currentUser = await getCurrentUser()
+        if (active) setUser(currentUser)
+      } catch {
+        if (active) {
+          logout()
           router.replace("/auth/sign-in")
-          return
         }
-        setUser(u)
-        setLoading(false)
-      })
-      .catch(() => {
-        if (!active) return
-        router.replace("/auth/sign-in")
-      })
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    loadUser()
+
     return () => {
       active = false
     }
   }, [router])
 
-  const handleLogout = async () => {
-    setSigningOut(true)
-    try {
-      await logout()
-    } finally {
-      localStorage.removeItem("mock-auth")
-      router.replace("/auth/sign-in")
-    }
+  const handleLogout = () => {
+    logout()
+    router.replace("/auth/sign-in")
   }
+
+  const displayName = user?.name ?? (loading ? "Loading..." : "")
+  const email = user?.email ?? (loading ? "Loading..." : "")
+  const graduationYear = user?.graduation_year ? String(user.graduation_year) : ""
+  const label = (value: { en: string; ja: string }) => ({
+    label: text(language, value),
+    subtitle: secondaryText(language, value),
+  })
 
   return (
     <div className="max-w-2xl space-y-4">
-      <Section icon={Shield} title="Account" ja="アカウント">
-        {loading ? (
-          <Row label="読み込み中…" ja="Loading">
-            <span className="text-sm text-muted-foreground">—</span>
-          </Row>
-        ) : (
-          <>
-            <Row label="名前" ja="Name">
-              <span className="text-sm text-foreground">{user?.name || "—"}</span>
-            </Row>
-            <Row label="メール" ja="Email">
-              <span className="text-sm text-foreground">{user?.email || "—"}</span>
-            </Row>
-            <Row label="卒業年" ja="Graduation year">
-              <span className="text-sm text-foreground">{user?.graduationYear || "—"}</span>
-            </Row>
-            <Row label="パスワード" ja="Password">
-              <span className="text-sm tracking-widest text-foreground">••••••••</span>
-            </Row>
-            <div className="px-5 py-3.5">
-              <button
-                onClick={handleLogout}
-                disabled={signingOut}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                <LogOut className="h-4 w-4" />
-                {signingOut ? "サインアウト中…" : "サインアウト"}
-              </button>
-            </div>
-          </>
-        )}
+      <Section icon={User} title={text(language, copy.account)} subtitle={secondaryText(language, copy.account)}>
+        <Row {...label(copy.name)}>
+          <input value={displayName} readOnly className={inputCls} />
+        </Row>
+        <Row {...label(copy.email)}>
+          <input value={email} readOnly className={inputCls} />
+        </Row>
+        <Row {...label(copy.graduationYear)}>
+          <input value={graduationYear || "-"} readOnly className={inputCls} />
+        </Row>
+        <PasswordChangeForm language={language} />
+        <div className="flex justify-end px-5 py-3.5">
+          <Button variant="destructive" size="lg" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+            {text(language, copy.logout)}
+          </Button>
+        </div>
       </Section>
 
-      <Section icon={User} title="Profile" ja="プロフィール">
-        <Row label="表示名" ja="Display name">
-          <input
-            defaultValue="就活ユーザー"
-            className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-          />
-        </Row>
-        <Row label="卒業予定年" ja="Graduation year">
-          <select className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
-            <option>2027年卒</option>
-            <option>2026年卒</option>
-            <option>2028年卒</option>
-          </select>
-        </Row>
-      </Section>
-
-      <Section icon={Bell} title="Notifications" ja="通知設定">
-        <Row label="ES締切リマインド" ja="ES deadline reminders">
+      <Section icon={Bell} title={text(language, copy.notifications)} subtitle={secondaryText(language, copy.notifications)}>
+        <Row {...label(copy.deadlineReminders)}>
           <Toggle defaultOn />
         </Row>
-        <Row label="面接前日アラート" ja="Interview day-before alert">
+        <Row {...label(copy.interviewAlert)}>
           <Toggle defaultOn />
         </Row>
-        <Row label="週次サマリー" ja="Weekly summary email">
+        <Row {...label(copy.weeklySummary)}>
           <Toggle />
         </Row>
       </Section>
 
-      <Section icon={Palette} title="Appearance" ja="表示設定">
-        <Row label="テーマ" ja="Theme">
-          <select className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
+      <Section icon={Palette} title={text(language, copy.appearance)} subtitle={secondaryText(language, copy.appearance)}>
+        <Row {...label(copy.theme)}>
+          <select className={inputCls}>
             <option>Navy (Light)</option>
             <option>System</option>
           </select>
         </Row>
-        <Row label="締切7日以内を強調" ja="Highlight deadlines ≤7d">
+        <Row {...label(copy.highlightDeadlines)}>
           <Toggle defaultOn />
         </Row>
       </Section>
 
-      <Section icon={Globe} title="Language" ja="言語">
-        <Row label="表示言語" ja="Interface language">
-          <select className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
-            <option>日本語 + English</option>
-            <option>日本語</option>
-            <option>English</option>
+      <Section icon={Globe} title={text(language, copy.language)} subtitle={secondaryText(language, copy.language)}>
+        <Row {...label(copy.interfaceLanguage)}>
+          <select
+            value={language}
+            onChange={(event) => setLanguagePreference(event.target.value as LanguageMode)}
+            className={inputCls}
+          >
+            <option value="ja-en">English + Japanese</option>
+            <option value="ja">Japanese</option>
+            <option value="en">English</option>
           </select>
         </Row>
       </Section>
 
-      <Section icon={Info} title="System" ja="システム情報">
-        {meta.map((m) => (
-          <Row key={m.k} label={m.k} ja="">
-            <span className="text-sm text-muted-foreground">{m.v}</span>
+      <Section icon={Info} title={text(language, copy.system)} subtitle={secondaryText(language, copy.system)}>
+        {meta.map((item) => (
+          <Row key={item.k} label={item.k}>
+            <span className="text-sm text-muted-foreground">{item.v}</span>
           </Row>
         ))}
       </Section>

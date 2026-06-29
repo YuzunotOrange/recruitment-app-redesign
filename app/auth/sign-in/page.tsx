@@ -8,51 +8,64 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
 import { signIn } from "@/lib/mock-auth"
+import { copy, text, useLanguagePreference } from "@/lib/language"
 
 export default function SignInPage() {
   const router = useRouter()
+  const language = useLanguagePreference()
   const [showPw, setShowPw] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   return (
     <AuthLayout
-      title="サインイン"
-      subtitle="Sign in to your account to continue"
+      title={text(language, copy.signIn)}
+      subtitle={text(language, copy.signInSubtitle)}
       footer={
         <>
-          アカウントをお持ちでないですか？{" "}
+          {text(language, copy.noAccount)}{" "}
           <Link href="/auth/sign-up" className="font-medium text-accent hover:underline">
-            新規登録
+            {text(language, copy.createOne)}
           </Link>
         </>
       }
     >
       <form
         className="space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault()
-          signIn()
-          router.push("/")
+          setError(null)
+          setIsSubmitting(true)
+
+          const form = new FormData(e.currentTarget)
+          const email = String(form.get("email") ?? "")
+          const password = String(form.get("password") ?? "")
+
+          try {
+            await signIn(email, password)
+            router.push("/")
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Sign in failed.")
+          } finally {
+            setIsSubmitting(false)
+          }
         }}
       >
+        <AuthField label="Email" ja="メールアドレス" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
         <AuthField
-          label="メールアドレス"
-          ja="Email"
-          type="email"
-          placeholder="you@example.com"
-          autoComplete="email"
-        />
-        <AuthField
-          label="パスワード"
-          ja="Password"
+          label="Password"
+          ja="パスワード"
+          name="password"
           type={showPw ? "text" : "password"}
-          placeholder="••••••••"
+          placeholder="********"
           autoComplete="current-password"
+          required
           rightSlot={
             <button
               type="button"
-              onClick={() => setShowPw((v) => !v)}
+              onClick={() => setShowPw((value) => !value)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={showPw ? "パスワードを隠す" : "パスワードを表示"}
+              aria-label={showPw ? "Hide password" : "Show password"}
             >
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -61,14 +74,15 @@ export default function SignInPage() {
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary" />
-            ログイン状態を保持
+            {text(language, copy.rememberMe)}
           </label>
           <Link href="/auth/forgot-password" className="text-sm font-medium text-accent hover:underline">
-            パスワードをお忘れですか？
+            {text(language, copy.forgotPassword)}
           </Link>
         </div>
-        <Button type="submit" size="lg" className="w-full">
-          サインイン
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          {text(language, copy.signIn)}
         </Button>
       </form>
     </AuthLayout>

@@ -1,4 +1,7 @@
+"use client"
+
 import { GraduationCap } from "lucide-react"
+import { copy, text, useLanguagePreference } from "@/lib/language"
 
 export function AuthLayout({
   title,
@@ -11,6 +14,8 @@ export function AuthLayout({
   children: React.ReactNode
   footer?: React.ReactNode
 }) {
+  const language = useLanguagePreference()
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
@@ -20,7 +25,7 @@ export function AuthLayout({
           </div>
           <div className="leading-tight">
             <p className="text-base font-semibold text-foreground">CareerTrack</p>
-            <p className="text-[11px] text-muted-foreground">就活管理システム</p>
+            <p className="text-[11px] text-muted-foreground">{text(language, copy.appSubtitle)}</p>
           </div>
         </div>
 

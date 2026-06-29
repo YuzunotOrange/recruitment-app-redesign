@@ -1,10 +1,29 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { isAuthed } from "@/lib/mock-auth"
+import { getAccessToken, getCurrentUser } from "@/lib/auth"
 
 export function useRequireAuth() {
   const router = useRouter()
   useEffect(() => {
-    if (!isAuthed()) router.replace("/auth/sign-in")
+    let cancelled = false
+
+    async function verifyAuth() {
+      if (!getAccessToken()) {
+        router.replace("/auth/sign-in")
+        return
+      }
+
+      try {
+        await getCurrentUser()
+      } catch {
+        if (!cancelled) router.replace("/auth/sign-in")
+      }
+    }
+
+    verifyAuth()
+
+    return () => {
+      cancelled = true
+    }
   }, [router])
 }

@@ -1,33 +1,73 @@
-# recruitment-app-redesign
+# Recruitment App Frontend
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Next.js frontend for the recruitment management app.
 
-## Built with v0
+## Package manager
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+Use npm for frontend dependencies and scripts.
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_qu3UrFuEDvtVjuTwxVKtQa6rWqca)
+## Environment
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
+copy .env.local.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Default:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+```
 
-## Learn More
+## Install
 
-To learn more, take a look at the following resources:
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
+npm install
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Start
+
+Start the backend first at `http://127.0.0.1:8000`, then:
+
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Checks
+
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
+npx tsc --noEmit --incremental false
+npm run build
+```
+
+## E2E smoke test
+
+Start the backend and frontend first.
+
+Terminal 1:
+
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\backend
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Terminal 2:
+
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
+npm run dev
+```
+
+Terminal 3:
+
+```powershell
+cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
+npm run e2e
+```
+
+The smoke test registers a user, creates a company, creates an event, verifies dashboard data, and logs out if possible.

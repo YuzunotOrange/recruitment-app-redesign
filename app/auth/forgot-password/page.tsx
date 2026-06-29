@@ -3,36 +3,28 @@
 import Link from "next/link"
 import { Mail } from "lucide-react"
 import { AuthLayout } from "@/components/auth/auth-layout"
-import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
 
 export default function ForgotPasswordPage() {
   return (
     <AuthLayout
-      title="パスワードリセット"
-      subtitle="Enter your email to receive a reset link"
+      title="Password reset"
+      subtitle="Password reset is not available in this MVP."
       footer={
         <Link href="/auth/sign-in" className="font-medium text-accent hover:underline">
-          サインインに戻る
+          Back to sign in
         </Link>
       }
     >
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        <AuthField
-          label="メールアドレス"
-          ja="Email"
-          type="email"
-          placeholder="you@example.com"
-          autoComplete="email"
-        />
+      <div className="space-y-4">
         <div className="flex items-start gap-2 rounded-lg bg-accent/10 p-3 text-xs text-accent">
           <Mail className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>入力したアドレスにリセット用リンクを送信します。メールボックスをご確認ください。</p>
+          <p>Coming soon. No reset email will be sent from this version.</p>
         </div>
-        <Button type="submit" size="lg" className="w-full">
-          リセットリンクを送信
+        <Button type="button" size="lg" className="w-full" disabled>
+          Send reset link
         </Button>
-      </form>
+      </div>
     </AuthLayout>
   )
 }
