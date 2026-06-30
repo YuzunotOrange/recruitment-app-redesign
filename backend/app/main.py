@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.database import init_db
-from app.routers import auth, companies, dashboard, events
+from app.routers import auth, companies, dashboard, events, notifications
 
 
 settings = get_settings()
@@ -33,3 +33,4 @@ app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(events.router)
 app.include_router(dashboard.router)
+app.include_router(notifications.router)

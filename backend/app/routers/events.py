@@ -8,6 +8,7 @@ from app.models.company import Company
 from app.models.event import Event
 from app.models.user import User
 from app.schemas.event import EventCreate, EventRead, EventUpdate
+from app.services.notifications import delete_event_notifications, sync_event_notifications
 
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -72,6 +73,8 @@ def create_event(
     db.add(event)
     db.commit()
     db.refresh(event)
+    sync_event_notifications(event, db)
+    db.commit()
     event = get_owned_event(event.id, current_user.id, db)
     return serialize_event(event)
 
@@ -108,6 +111,8 @@ def update_event(
 
     db.commit()
     db.refresh(event)
+    sync_event_notifications(event, db)
+    db.commit()
     event = get_owned_event(event.id, current_user.id, db)
     return serialize_event(event)
 
@@ -119,5 +124,6 @@ def delete_event(
     current_user: User = Depends(get_current_user),
 ) -> None:
     event = get_owned_event(event_id, current_user.id, db)
+    delete_event_notifications(event, db)
     db.delete(event)
     db.commit()

@@ -7,6 +7,7 @@ from app.dependencies.auth import get_current_user
 from app.models.company import Company
 from app.models.user import User
 from app.schemas.company import CompanyCreate, CompanyRead, CompanyStatus, CompanyUpdate, Industry, Priority
+from app.services.notifications import delete_company_notifications, sync_company_notifications
 
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -51,6 +52,9 @@ def create_company(
     db.add(company)
     db.commit()
     db.refresh(company)
+    sync_company_notifications(company, db)
+    db.commit()
+    db.refresh(company)
     return company
 
 
@@ -76,6 +80,9 @@ def update_company(
         setattr(company, key, value)
     db.commit()
     db.refresh(company)
+    sync_company_notifications(company, db)
+    db.commit()
+    db.refresh(company)
     return company
 
 
@@ -86,5 +93,6 @@ def delete_company(
     current_user: User = Depends(get_current_user),
 ) -> None:
     company = get_owned_company(company_id, current_user.id, db)
+    delete_company_notifications(company, db)
     db.delete(company)
     db.commit()

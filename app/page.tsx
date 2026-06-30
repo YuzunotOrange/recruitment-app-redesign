@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Sidebar, MobileNav, type ViewKey } from "@/components/sidebar"
+import { NotificationCenter } from "@/components/notification-center"
 import { RightPanel } from "@/components/right-panel"
 import { Dashboard } from "@/components/views/dashboard"
 import { CompaniesView } from "@/components/views/companies-view"
@@ -32,11 +33,12 @@ export default function Page() {
       <Sidebar active={view} onChange={setView} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center border-b border-border bg-background/80 px-5 py-4 backdrop-blur md:px-8">
+        <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-5 py-4 backdrop-blur md:px-8">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{text(language, titles[view])}</h1>
             {secondaryTitle && <p className="text-xs text-muted-foreground">{secondaryTitle}</p>}
           </div>
+          <NotificationCenter />
         </header>
 
         <MobileNav active={view} onChange={setView} />
