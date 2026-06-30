@@ -5,6 +5,7 @@ import { Bell, Check, Trash2, X } from "lucide-react"
 
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
+import { NOTIFICATION_REFRESH_EVENT } from "@/lib/notification-events"
 
 type NotificationItem = {
   id: number
@@ -47,6 +48,18 @@ export function NotificationCenter() {
     loadNotifications()
   }, [])
 
+  useEffect(() => {
+    window.addEventListener(NOTIFICATION_REFRESH_EVENT, loadNotifications)
+    return () => window.removeEventListener(NOTIFICATION_REFRESH_EVENT, loadNotifications)
+  }, [])
+
+  function toggleOpen() {
+    if (!open) {
+      loadNotifications()
+    }
+    setOpen((current) => !current)
+  }
+
   async function markAsRead(notificationId: number) {
     try {
       const updated = await apiRequest<NotificationItem>(`/notifications/${notificationId}/read`, { method: "PATCH" })
@@ -77,7 +90,7 @@ export function NotificationCenter() {
   const unreadCount = notifications.filter((item) => !item.is_read).length
 
   const panel = (
-    <div className="flex max-h-[75vh] flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-xl sm:max-h-[70vh] sm:w-96 sm:rounded-2xl">
+    <div className="flex max-h-[75vh] flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl ring-1 ring-black/5 sm:max-h-[70vh] sm:w-96 sm:rounded-2xl">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-card-foreground">
@@ -162,10 +175,10 @@ export function NotificationCenter() {
   )
 
   return (
-    <div className="relative">
+    <div className="relative z-[100]">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggleOpen}
         className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground"
         aria-label="Open notifications"
       >
@@ -179,9 +192,9 @@ export function NotificationCenter() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-50 sm:hidden">{panel}</div>
-          <div className="absolute right-0 top-12 z-50 hidden sm:block">{panel}</div>
+          <div className="fixed inset-0 z-[90] bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-[100] sm:hidden">{panel}</div>
+          <div className="absolute right-0 top-full z-[100] mt-2 hidden sm:block">{panel}</div>
         </>
       )}
     </div>

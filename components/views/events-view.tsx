@@ -7,6 +7,7 @@ import {
 } from "@/lib/data"
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
+import { requestNotificationRefresh } from "@/lib/notification-events"
 import { SplitDateInput } from "@/components/split-date-input"
 import { StatusBadge } from "@/components/status-badge"
 
@@ -175,6 +176,7 @@ function EventsTab() {
         })
         setEvents((current) => [...current, created])
       }
+      requestNotificationRefresh()
       resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save event.")
@@ -195,6 +197,7 @@ function EventsTab() {
     try {
       await apiRequest<void>(`/events/${eventId}`, { method: "DELETE" })
       setEvents((current) => current.filter((event) => event.id !== eventId))
+      requestNotificationRefresh()
       if (editingId === eventId) resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete event.")

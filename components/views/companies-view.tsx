@@ -12,6 +12,7 @@ import {
 } from "@/lib/data"
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
+import { requestNotificationRefresh } from "@/lib/notification-events"
 import { SplitDateInput } from "@/components/split-date-input"
 import { PriorityBadge, Stars, StatusBadge } from "@/components/status-badge"
 
@@ -181,18 +182,19 @@ export function CompaniesView() {
 
     try {
       if (editingId) {
-        const updated = await apiRequest<ApiCompany>(`/companies/${editingId}`, {
+        await apiRequest<ApiCompany>(`/companies/${editingId}`, {
           method: "PUT",
           body: JSON.stringify(toPayload(form)),
         })
         await refreshCompanies()
       } else {
-        const created = await apiRequest<ApiCompany>("/companies", {
+        await apiRequest<ApiCompany>("/companies", {
           method: "POST",
           body: JSON.stringify(toPayload(form)),
         })
         await refreshCompanies()
       }
+      requestNotificationRefresh()
       resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save company.")
@@ -213,6 +215,7 @@ export function CompaniesView() {
     try {
       await apiRequest<void>(`/companies/${companyId}`, { method: "DELETE" })
       await refreshCompanies()
+      requestNotificationRefresh()
       if (editingId === companyId) resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete company.")
@@ -222,11 +225,12 @@ export function CompaniesView() {
   const handleStatusChange = async (company: ApiCompany, status: CompanyStatus) => {
     setError(null)
     try {
-      const updated = await apiRequest<ApiCompany>(`/companies/${company.id}`, {
+      await apiRequest<ApiCompany>(`/companies/${company.id}`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       })
       await refreshCompanies()
+      requestNotificationRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status.")
     }
