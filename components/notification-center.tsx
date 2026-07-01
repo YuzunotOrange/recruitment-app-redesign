@@ -89,7 +89,9 @@ export function NotificationCenter() {
   }
 
   const unreadCount = notifications.filter((item) => !item.is_read).length
-  const signalLevel = unreadCount > 0 ? Math.min(100, 36 + unreadCount * 18) : 14
+  const alertCount = notifications.length
+  const signalLevel = alertCount > 0 ? Math.min(100, 24 + alertCount * 16 + unreadCount * 12) : 8
+  const signalStatus = unreadCount > 0 ? "Unread" : alertCount > 0 ? "Seen" : "Clear"
 
   const panel = (
     <div className="relative flex max-h-[min(75vh,42rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-border/80 bg-popover/95 text-popover-foreground shadow-[0_18px_70px_rgba(0,0,0,0.42)] ring-1 ring-white/10 backdrop-blur-xl sm:max-h-[min(70vh,42rem)] sm:w-[24rem] sm:rounded-2xl">
@@ -130,27 +132,31 @@ export function NotificationCenter() {
           </div>
         </div>
 
-        <div className="mt-3 overflow-hidden rounded-xl border border-warning/35 bg-[linear-gradient(135deg,rgba(255,216,77,0.16),rgba(0,234,255,0.08)_46%,rgba(255,43,214,0.12))] shadow-[inset_0_0_22px_rgba(0,234,255,0.08)]">
+        <div className="cyber-glow-pulse mt-3 overflow-hidden rounded-xl border border-warning/35 bg-[linear-gradient(135deg,rgba(255,216,77,0.16),rgba(0,234,255,0.08)_46%,rgba(255,43,214,0.12))] shadow-[inset_0_0_22px_rgba(0,234,255,0.08)]">
           <div className="flex items-center justify-between gap-3 border-b border-warning/20 px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
-              <RadioTower className="h-4 w-4 shrink-0 text-warning" />
-              <p className="truncate font-mono text-[11px] font-bold uppercase text-foreground">Neon Grid // Signal</p>
+              <RadioTower className="cyber-pulse h-4 w-4 shrink-0 text-warning" />
+              <p className="truncate font-mono text-[11px] font-bold uppercase text-foreground">Alert Signal</p>
             </div>
-            <span className="rounded-sm bg-warning px-1.5 py-0.5 font-mono text-[10px] font-black uppercase text-warning-foreground">
-              {unreadCount > 0 ? "Active" : "Clear"}
+            <span className="cyber-blink rounded-sm bg-warning px-1.5 py-0.5 font-mono text-[10px] font-black uppercase text-warning-foreground">
+              {signalStatus}
             </span>
           </div>
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2">
-            <Zap className="h-3.5 w-3.5 text-primary" />
+            <Zap className="cyber-flicker h-3.5 w-3.5 text-primary" />
             <div className="h-1.5 overflow-hidden rounded-full bg-background/70 ring-1 ring-border/70">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-warning via-accent to-primary shadow-[0_0_12px_rgba(0,234,255,0.55)]"
+                className="cyber-scan-sweep-x h-full rounded-full bg-gradient-to-r from-warning via-accent to-primary shadow-[0_0_12px_rgba(0,234,255,0.55)]"
                 style={{ width: `${signalLevel}%` }}
               />
             </div>
-            <span className="font-mono text-[10px] font-bold text-muted-foreground">
-              {String(unreadCount).padStart(2, "0")}
+            <span className="whitespace-nowrap font-mono text-[10px] font-bold text-muted-foreground">
+              {alertCount} alert{alertCount === 1 ? "" : "s"}
             </span>
+          </div>
+          <div className="flex items-center justify-between border-t border-warning/15 px-3 py-1.5 font-mono text-[10px] uppercase text-muted-foreground">
+            <span>Unread {unreadCount}</span>
+            <span>Total {alertCount}</span>
           </div>
         </div>
       </div>

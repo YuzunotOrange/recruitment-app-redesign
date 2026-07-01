@@ -648,12 +648,104 @@
   }
 }
 
+
+[data-theme="cyberpunk"] .cyber-blink {
+  animation: cyber-blink 1.1s step-end infinite;
+}
+
+[data-theme="cyberpunk"] .cyber-pulse {
+  animation: cyber-pulse 2.2s ease-in-out infinite;
+}
+
+[data-theme="cyberpunk"] .cyber-glow-pulse {
+  animation: cyber-glow-pulse 2.8s ease-in-out infinite;
+}
+
+[data-theme="cyberpunk"] .cyber-glitch-shift {
+  animation: cyber-glitch-shift 3.8s steps(1, end) infinite;
+}
+
+[data-theme="cyberpunk"] .cyber-scan-sweep-x {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="cyberpunk"] .cyber-scan-sweep-x::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
+  mix-blend-mode: screen;
+  transform: translateX(-115%);
+  animation: cyber-scan-sweep-x 2.6s ease-in-out infinite;
+}
+
+@keyframes cyber-blink {
+  0%, 49% { opacity: 1; }
+  50%, 62% { opacity: 0.18; }
+  63%, 100% { opacity: 1; }
+}
+
+@keyframes cyber-pulse {
+  0%, 100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes cyber-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 rgba(0, 234, 255, 0),
+      inset 0 0 18px rgba(0, 234, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 24px rgba(0, 234, 255, 0.28),
+      0 0 38px rgba(255, 43, 214, 0.18),
+      inset 0 0 24px rgba(0, 234, 255, 0.14);
+  }
+}
+
+@keyframes cyber-glitch-shift {
+  0%, 88%, 100% {
+    transform: translate(0);
+    text-shadow: none;
+  }
+  90% {
+    transform: translate(-1px, 1px);
+    text-shadow: 2px 0 var(--cyber-cyan), -2px 0 var(--cyber-magenta);
+  }
+  92% {
+    transform: translate(2px, -1px);
+    text-shadow: -2px 0 var(--cyber-yellow), 2px 0 var(--cyber-cyan);
+  }
+}
+
+@keyframes cyber-scan-sweep-x {
+  0%, 62%, 100% {
+    transform: translateX(-115%);
+  }
+  82% {
+    transform: translateX(115%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-theme="cyberpunk"] .cyber-glitch,
+  [data-theme="cyberpunk"] .cyber-blink,
   [data-theme="cyberpunk"] .cyber-glitch::before,
   [data-theme="cyberpunk"] .cyber-glitch::after,
   [data-theme="cyberpunk"] .cyber-logo-ring::before,
   [data-theme="cyberpunk"] .cyber-flicker,
+  [data-theme="cyberpunk"] .cyber-pulse,
+  [data-theme="cyberpunk"] .cyber-glow-pulse,
+  [data-theme="cyberpunk"] .cyber-glitch-shift,
+  [data-theme="cyberpunk"] .cyber-scan-sweep-x::after,
   [data-theme="cyberpunk"] .cyber-ticker-track,
   [data-theme="cyberpunk"] .cyber-hud-panel::before {
     animation: none;
