@@ -319,7 +319,9 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   return (
     <div className="space-y-6">
       <div className="cyber-hero" aria-hidden="true">
-        BECOME A <span className="cyber-glitch" data-text="LEGEND">LEGEND</span> IN NIGHT CITY.
+        <span>BECOME A</span>
+        <span><span className="cyber-glitch" data-text="LEGEND">LEGEND</span> IN</span>
+        <span className="cyber-hero-cyan">NIGHT CITY.</span>
       </div>
 
       <div className="cyber-status-hud rounded-2xl border border-border bg-card p-5">
