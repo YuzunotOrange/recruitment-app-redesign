@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Sidebar, MobileNav, type ViewKey } from "@/components/sidebar"
+import { CyberTicker } from "@/components/cyber-ticker"
 import { NotificationCenter } from "@/components/notification-center"
 import { RightPanel } from "@/components/right-panel"
 import { Dashboard } from "@/components/views/dashboard"
@@ -40,6 +41,7 @@ export default function Page() {
           </div>
           <NotificationCenter />
         </header>
+        <CyberTicker />
 
         <MobileNav active={view} onChange={setView} />
 

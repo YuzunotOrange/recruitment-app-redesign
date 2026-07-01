@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import type { CSSProperties } from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertTriangle,
@@ -309,11 +310,54 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   )
 
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
+  const failedCount = (summary.company_status_counts.es_rejected ?? 0) + (summary.company_status_counts.spi_rejected ?? 0)
+  const clearedCount = summary.kpis.interviews + summary.kpis.offers
+  const totalCount = summary.kpis.total_companies
+  const clearRate = totalCount > 0 ? Math.min(100, Math.round((clearedCount / totalCount) * 100)) : 0
+  const hudRingStyle = { "--cyber-clear": `${clearRate}%` } as CSSProperties
 
   return (
     <div className="space-y-6">
       <div className="cyber-hero" aria-hidden="true">
         BECOME A <span className="cyber-glitch" data-text="LEGEND">LEGEND</span> IN NIGHT CITY.
+      </div>
+
+      <div className="cyber-status-hud rounded-2xl border border-border bg-card p-5">
+        <div className="cyber-hud-copy">
+          <p className="cyber-hud-kicker">STREET RECRUIT PROTOCOL // v2.077</p>
+          <h2>
+            CLEAR THE <span>SELECTION GRID</span>.
+          </h2>
+          <p>
+            企業との交渉を可視化し、直近予定とステータスをスキャンします。
+          </p>
+        </div>
+        <div className="cyber-hud-panel">
+          <div className="cyber-hud-ring" style={hudRingStyle}>
+            <div>
+              <span className="cyber-flicker">{clearRate}%</span>
+              <small>CLEAR RATE</small>
+            </div>
+          </div>
+          <div className="cyber-hud-stats">
+            <div>
+              <span className="cyber-flicker">{totalCount}</span>
+              <small>GIGS</small>
+            </div>
+            <div>
+              <span className="cyber-flicker">{summary.kpis.awaiting}</span>
+              <small>PENDING</small>
+            </div>
+            <div>
+              <span className="cyber-flicker">{clearedCount}</span>
+              <small>CLEARED</small>
+            </div>
+            <div>
+              <span className="cyber-flicker">{failedCount}</span>
+              <small>FAILED</small>
+            </div>
+          </div>
+        </div>
       </div>
 
       {loading && (
