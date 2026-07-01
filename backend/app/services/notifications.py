@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.company import Company
 from app.models.event import Event
-from app.models.notification import Notification
+from app.models.notification import Notification, ReminderSettings
 
 
 DEADLINE_NOTIFICATION_TYPES = {"deadline", "offer"}
@@ -35,6 +35,32 @@ def is_current_or_future_notification(value: datetime | None, today: date | None
         return True
     baseline = today or datetime.now(JST).date()
     return _to_jst(value).date() >= baseline
+
+
+def get_or_create_reminder_settings(db: Session, user_id: int) -> ReminderSettings:
+    settings = db.scalar(select(ReminderSettings).where(ReminderSettings.user_id == user_id))
+    if settings is not None:
+        return settings
+
+    settings = ReminderSettings(user_id=user_id)
+    db.add(settings)
+    db.commit()
+    db.refresh(settings)
+    return settings
+
+
+def notification_allowed_by_settings(notification_type: str, settings: ReminderSettings) -> bool:
+    if notification_type == "deadline":
+        return settings.es_deadline_enabled
+    if notification_type == "interview":
+        return settings.interview_enabled
+    if notification_type == "internship":
+        return settings.internship_enabled
+    if notification_type == "offer":
+        return settings.offer_enabled
+    if notification_type == "custom":
+        return settings.info_session_enabled
+    return True
 
 
 def _deadline_message(company_name: str, days_before: int) -> str:
@@ -93,8 +119,9 @@ def _sync_related_notifications(
 def sync_company_notifications(company: Company, db: Session) -> None:
     specs: list[NotificationSpec] = []
     today = datetime.now(JST).date()
+    settings = get_or_create_reminder_settings(db, company.user_id)
 
-    if company.es_deadline:
+    if company.es_deadline and settings.es_deadline_enabled:
         for days_before in (7, 3, 1):
             scheduled_day = company.es_deadline - timedelta(days=days_before)
             scheduled_at = _at_local_time(scheduled_day)
@@ -109,7 +136,7 @@ def sync_company_notifications(company: Company, db: Session) -> None:
                 }
             )
 
-    if company.status == "offer":
+    if company.status == "offer" and settings.offer_enabled:
         specs.append(
             {
                 "title": "Offer Received",
@@ -133,8 +160,9 @@ def sync_event_notifications(event: Event, db: Session) -> None:
     start_at = _event_start_at(event)
     specs: list[NotificationSpec] = []
     today = datetime.now(JST).date()
+    settings = get_or_create_reminder_settings(db, event.user_id)
 
-    if event.type == "interview":
+    if event.type == "interview" and settings.interview_enabled:
         for scheduled_at, message in (
             (start_at - timedelta(days=1), f"{event.title} is scheduled tomorrow."),
             (start_at - timedelta(minutes=30), f"{event.title} starts in 30 minutes."),
@@ -149,7 +177,7 @@ def sync_event_notifications(event: Event, db: Session) -> None:
                     }
                 )
 
-    if event.type == "intern":
+    if event.type == "intern" and settings.internship_enabled:
         scheduled_at = start_at - timedelta(days=1)
         if is_current_or_future_notification(scheduled_at, today):
             specs.append(
@@ -161,7 +189,7 @@ def sync_event_notifications(event: Event, db: Session) -> None:
                 }
             )
 
-    if event.type == "offer":
+    if event.type == "offer" and settings.offer_enabled:
         specs.append(
             {
                 "title": "Offer Received",
@@ -171,7 +199,7 @@ def sync_event_notifications(event: Event, db: Session) -> None:
             }
         )
 
-    if event.type == "briefing":
+    if event.type == "briefing" and settings.info_session_enabled:
         scheduled_at = start_at - timedelta(days=1)
         if is_current_or_future_notification(scheduled_at, today):
             specs.append(

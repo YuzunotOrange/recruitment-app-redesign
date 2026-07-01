@@ -6,7 +6,11 @@ from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.notification import Notification, ReminderSettings
 from app.models.user import User
-from app.services.notifications import is_current_or_future_notification
+from app.services.notifications import (
+    get_or_create_reminder_settings,
+    is_current_or_future_notification,
+    notification_allowed_by_settings,
+)
 from app.schemas.notification import (
     NotificationRead,
     ReadAllResponse,
@@ -27,18 +31,6 @@ def get_owned_notification(notification_id: int, user_id: int, db: Session) -> N
     return notification
 
 
-def get_or_create_reminder_settings(user_id: int, db: Session) -> ReminderSettings:
-    settings = db.scalar(select(ReminderSettings).where(ReminderSettings.user_id == user_id))
-    if settings is not None:
-        return settings
-
-    settings = ReminderSettings(user_id=user_id)
-    db.add(settings)
-    db.commit()
-    db.refresh(settings)
-    return settings
-
-
 @router.get("/notifications", response_model=list[NotificationRead])
 def list_notifications(
     db: Session = Depends(get_db),
@@ -50,7 +42,13 @@ def list_notifications(
         .order_by(Notification.is_read.asc(), Notification.scheduled_at.asc(), Notification.created_at.desc())
     )
     notifications = list(db.scalars(stmt).all())
-    return [notification for notification in notifications if is_current_or_future_notification(notification.scheduled_at)]
+    settings = get_or_create_reminder_settings(db, current_user.id)
+    return [
+        notification
+        for notification in notifications
+        if is_current_or_future_notification(notification.scheduled_at)
+        and notification_allowed_by_settings(notification.type, settings)
+    ]
 
 
 @router.patch("/notifications/{notification_id}/read", response_model=NotificationRead)
@@ -98,7 +96,7 @@ def read_reminder_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReminderSettings:
-    return get_or_create_reminder_settings(current_user.id, db)
+    return get_or_create_reminder_settings(db, current_user.id)
 
 
 @router.put("/reminder-settings", response_model=ReminderSettingsRead)
@@ -107,7 +105,7 @@ def update_reminder_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReminderSettings:
-    settings = get_or_create_reminder_settings(current_user.id, db)
+    settings = get_or_create_reminder_settings(db, current_user.id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(settings, key, value)
     db.commit()

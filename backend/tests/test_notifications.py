@@ -237,6 +237,134 @@ def test_company_deadline_skips_already_past_reminder_dates(
     assert deadline_notifications[0]["scheduled_at"][:10] == (deadline_date - timedelta(days=1)).isoformat()
 
 
+def test_es_deadline_notifications_respect_reminder_settings(
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    disabled = client.put("/reminder-settings", headers=auth_headers, json={"es_deadline_enabled": False})
+    assert disabled.status_code == 200
+
+    deadline_date = datetime.now(JST).date() + timedelta(days=14)
+    created = client.post(
+        "/companies",
+        headers=auth_headers,
+        json={
+            "name": "No ES Corp",
+            "industry": "it",
+            "priority": "A",
+            "importance": 4,
+            "status": "planned",
+            "es_deadline": deadline_date.isoformat(),
+            "note": None,
+        },
+    )
+    assert created.status_code == 201
+    company_id = created.json()["id"]
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "deadline"] == []
+
+    enabled = client.put("/reminder-settings", headers=auth_headers, json={"es_deadline_enabled": True})
+    assert enabled.status_code == 200
+    updated = client.put(
+        f"/companies/{company_id}",
+        headers=auth_headers,
+        json={"es_deadline": (deadline_date + timedelta(days=1)).isoformat()},
+    )
+    assert updated.status_code == 200
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert len([item for item in notifications.json() if item["type"] == "deadline"]) == 3
+
+
+def test_interview_notifications_respect_reminder_settings(
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    disabled = client.put("/reminder-settings", headers=auth_headers, json={"interview_enabled": False})
+    assert disabled.status_code == 200
+
+    start_day = datetime.now(JST).date() + timedelta(days=5)
+    created = client.post(
+        "/events",
+        headers=auth_headers,
+        json={
+            "company_id": None,
+            "title": "Hidden Interview",
+            "start_date": start_day.isoformat(),
+            "end_date": start_day.isoformat(),
+            "start_time": "13:00",
+            "type": "interview",
+            "note": None,
+        },
+    )
+    assert created.status_code == 201
+    event_id = created.json()["id"]
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "interview"] == []
+
+    enabled = client.put("/reminder-settings", headers=auth_headers, json={"interview_enabled": True})
+    assert enabled.status_code == 200
+    updated = client.put(f"/events/{event_id}", headers=auth_headers, json={"title": "Visible Interview"})
+    assert updated.status_code == 200
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert len([item for item in notifications.json() if item["type"] == "interview"]) == 2
+
+
+def test_notification_settings_are_user_scoped(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    second_user_headers: dict[str, str],
+):
+    assert client.put("/reminder-settings", headers=auth_headers, json={"es_deadline_enabled": False}).status_code == 200
+
+    deadline_date = datetime.now(JST).date() + timedelta(days=14)
+    first = client.post(
+        "/companies",
+        headers=auth_headers,
+        json={"name": "First Corp", "industry": "it", "priority": "A", "importance": 4, "status": "planned", "es_deadline": deadline_date.isoformat()},
+    )
+    second = client.post(
+        "/companies",
+        headers=second_user_headers,
+        json={"name": "Second Corp", "industry": "it", "priority": "A", "importance": 4, "status": "planned", "es_deadline": deadline_date.isoformat()},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    first_notifications = client.get("/notifications", headers=auth_headers)
+    second_notifications = client.get("/notifications", headers=second_user_headers)
+    assert first_notifications.status_code == 200
+    assert second_notifications.status_code == 200
+    assert [item for item in first_notifications.json() if item["type"] == "deadline"] == []
+    assert len([item for item in second_notifications.json() if item["type"] == "deadline"]) == 3
+
+
+def test_notifications_response_filters_disabled_types(
+    client: TestClient,
+    db_session: Session,
+    auth_headers: dict[str, str],
+):
+    user_id = current_user_id(client, auth_headers)
+    visible = create_notification(db_session, user_id, title="Interview", type="interview", related_type="event")
+    hidden = create_notification(db_session, user_id, title="Deadline", type="deadline", related_type="company")
+
+    disabled = client.put("/reminder-settings", headers=auth_headers, json={"es_deadline_enabled": False})
+    assert disabled.status_code == 200
+
+    listed = client.get("/notifications", headers=auth_headers)
+    assert listed.status_code == 200
+    ids = {item["id"] for item in listed.json()}
+    assert visible.id in ids
+    assert hidden.id not in ids
+
+
 def test_event_create_update_generates_interview_and_internship_notifications(
     client: TestClient,
     auth_headers: dict[str, str],

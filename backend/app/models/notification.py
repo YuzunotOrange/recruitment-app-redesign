@@ -35,6 +35,12 @@ class ReminderSettings(Base):
     deadline_1day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     interview_1day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     interview_30min: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    es_deadline_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    interview_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    internship_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    info_session_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    offer_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    weekly_summary_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     email_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     push_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

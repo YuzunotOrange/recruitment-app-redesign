@@ -5,21 +5,34 @@ import { useRouter } from "next/navigation"
 import { Bell, Globe, Info, LogOut, Palette, User } from "lucide-react"
 import { PasswordChangeForm } from "@/components/password-change-form"
 import { Button } from "@/components/ui/button"
+import { apiRequest } from "@/lib/api"
 import { getCurrentUser, logout, type User as AuthUser } from "@/lib/auth"
 import { copy, secondaryText, setLanguagePreference, text, useLanguagePreference, type LanguageMode } from "@/lib/language"
+import { requestNotificationRefresh } from "@/lib/notification-events"
 
-function Toggle({ defaultOn = false }: { defaultOn?: boolean }) {
-  const [on, setOn] = useState(defaultOn)
+function Toggle({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean
+  disabled?: boolean
+  onChange: (checked: boolean) => void
+}) {
   return (
     <button
-      onClick={() => setOn((value) => !value)}
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
       role="switch"
-      aria-checked={on}
-      className={`relative h-6 w-11 rounded-full transition-colors ${on ? "bg-primary" : "bg-muted-foreground/30"}`}
+      aria-checked={checked}
+      className={`relative h-6 w-11 rounded-full transition-colors disabled:opacity-60 ${
+        checked ? "bg-primary" : "bg-muted-foreground/30"
+      }`}
     >
       <span
         className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform ${
-          on ? "translate-x-5" : "translate-x-0"
+          checked ? "translate-x-5" : "translate-x-0"
         }`}
       />
     </button>
@@ -73,10 +86,31 @@ const meta = [
   { k: "Data source", v: "FastAPI + SQLite" },
 ]
 
+type ReminderSettings = {
+  es_deadline_enabled: boolean
+  interview_enabled: boolean
+  internship_enabled: boolean
+  info_session_enabled: boolean
+  offer_enabled: boolean
+  weekly_summary_enabled: boolean
+}
+
+const defaultReminderSettings: ReminderSettings = {
+  es_deadline_enabled: true,
+  interview_enabled: true,
+  internship_enabled: true,
+  info_session_enabled: true,
+  offer_enabled: true,
+  weekly_summary_enabled: false,
+}
+
 export function SettingsView() {
   const router = useRouter()
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [reminderSettings, setReminderSettings] = useState<ReminderSettings>(defaultReminderSettings)
   const [loading, setLoading] = useState(true)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
   const language = useLanguagePreference()
 
   useEffect(() => {
@@ -86,8 +120,14 @@ export function SettingsView() {
       setLoading(true)
 
       try {
-        const currentUser = await getCurrentUser()
-        if (active) setUser(currentUser)
+        const [currentUser, settings] = await Promise.all([
+          getCurrentUser(),
+          apiRequest<ReminderSettings>("/reminder-settings"),
+        ])
+        if (active) {
+          setUser(currentUser)
+          setReminderSettings({ ...defaultReminderSettings, ...settings })
+        }
       } catch {
         if (active) {
           logout()
@@ -108,6 +148,28 @@ export function SettingsView() {
   const handleLogout = () => {
     logout()
     router.replace("/auth/sign-in")
+  }
+
+  const updateReminderSetting = async (key: keyof ReminderSettings, value: boolean) => {
+    const previous = reminderSettings
+    const next = { ...reminderSettings, [key]: value }
+    setReminderSettings(next)
+    setSettingsSaving(true)
+    setSettingsError(null)
+
+    try {
+      const saved = await apiRequest<ReminderSettings>("/reminder-settings", {
+        method: "PUT",
+        body: JSON.stringify({ [key]: value }),
+      })
+      setReminderSettings({ ...defaultReminderSettings, ...saved })
+      requestNotificationRefresh()
+    } catch (err) {
+      setReminderSettings(previous)
+      setSettingsError(err instanceof Error ? err.message : "Failed to save notification settings.")
+    } finally {
+      setSettingsSaving(false)
+    }
   }
 
   const displayName = user?.name ?? (loading ? "Loading..." : "")
@@ -140,14 +202,48 @@ export function SettingsView() {
       </Section>
 
       <Section icon={Bell} title={text(language, copy.notifications)} subtitle={secondaryText(language, copy.notifications)}>
-        <Row {...label(copy.deadlineReminders)}>
-          <Toggle defaultOn />
+        {settingsError && <p className="px-5 py-3 text-sm text-destructive">{settingsError}</p>}
+        <Row label={text(language, { en: "ES deadline reminders", ja: "ES締切リマインド" })}>
+          <Toggle
+            checked={reminderSettings.es_deadline_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("es_deadline_enabled", checked)}
+          />
         </Row>
-        <Row {...label(copy.interviewAlert)}>
-          <Toggle defaultOn />
+        <Row label={text(language, { en: "Interview reminders", ja: "面接リマインド" })}>
+          <Toggle
+            checked={reminderSettings.interview_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("interview_enabled", checked)}
+          />
+        </Row>
+        <Row label={text(language, { en: "Internship reminders", ja: "インターンリマインド" })}>
+          <Toggle
+            checked={reminderSettings.internship_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("internship_enabled", checked)}
+          />
+        </Row>
+        <Row label={text(language, { en: "Info session reminders", ja: "説明会リマインド" })}>
+          <Toggle
+            checked={reminderSettings.info_session_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("info_session_enabled", checked)}
+          />
+        </Row>
+        <Row label={text(language, { en: "Offer notifications", ja: "内定通知" })}>
+          <Toggle
+            checked={reminderSettings.offer_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("offer_enabled", checked)}
+          />
         </Row>
         <Row {...label(copy.weeklySummary)}>
-          <Toggle />
+          <Toggle
+            checked={reminderSettings.weekly_summary_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("weekly_summary_enabled", checked)}
+          />
         </Row>
       </Section>
 
@@ -159,7 +255,7 @@ export function SettingsView() {
           </select>
         </Row>
         <Row {...label(copy.highlightDeadlines)}>
-          <Toggle defaultOn />
+          <Toggle checked disabled onChange={() => undefined} />
         </Row>
       </Section>
 

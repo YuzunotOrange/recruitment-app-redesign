@@ -46,6 +46,12 @@ class ReminderSettingsRead(BaseModel):
     deadline_1day: bool
     interview_1day: bool
     interview_30min: bool
+    es_deadline_enabled: bool
+    interview_enabled: bool
+    internship_enabled: bool
+    info_session_enabled: bool
+    offer_enabled: bool
+    weekly_summary_enabled: bool
     email_enabled: bool
     push_enabled: bool
 
@@ -58,5 +64,11 @@ class ReminderSettingsUpdate(BaseModel):
     deadline_1day: bool | None = None
     interview_1day: bool | None = None
     interview_30min: bool | None = None
+    es_deadline_enabled: bool | None = None
+    interview_enabled: bool | None = None
+    internship_enabled: bool | None = None
+    info_session_enabled: bool | None = None
+    offer_enabled: bool | None = None
+    weekly_summary_enabled: bool | None = None
     email_enabled: bool | None = None
     push_enabled: bool | None = None
