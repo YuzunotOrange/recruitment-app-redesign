@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { AlertTriangle, Bell, CalendarClock, CheckCircle2 } from "lucide-react"
 import { apiRequest } from "@/lib/api"
-import { daysUntil, TODAY } from "@/lib/data"
+import { daysUntil, getToday } from "@/lib/data"
 import { copy, formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
 import { APP_DATA_REFRESH_EVENT } from "@/lib/notification-events"
 import { StatusBadge } from "@/components/status-badge"
@@ -58,6 +58,7 @@ function formatPanelDate(dateIso: string, language: "en" | "ja" | "ja-en") {
 
 export function RightPanel() {
   const language = useLanguagePreference()
+  const today = getToday()
   const [summary, setSummary] = useState<DashboardSummary>({
     upcoming_events: [],
     upcoming_deadlines: [],
@@ -112,7 +113,7 @@ export function RightPanel() {
             {text(language, { en: "Deadlines", ja: "ES締切" })}
           </h3>
           <span className="text-xs text-muted-foreground">
-            {TODAY.getFullYear()}/{TODAY.getMonth() + 1}/{TODAY.getDate()}
+            {today.getFullYear()}/{today.getMonth() + 1}/{today.getDate()}
           </span>
         </div>
         <div className="mt-3 space-y-2">

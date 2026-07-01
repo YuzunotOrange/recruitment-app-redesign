@@ -150,7 +150,11 @@ def test_company_create_update_generates_deadline_and_offer_notifications(
     assert {item["related_type"] for item in deadline_notifications} == {"company"}
     assert {item["related_id"] for item in deadline_notifications} == {company_id}
     assert {item["title"] for item in deadline_notifications} == {"ES Deadline"}
-    assert {item["message"] for item in deadline_notifications} == {"ES deadline for Notify Corp is approaching."}
+    assert [item["message"] for item in deadline_notifications] == [
+        "ES deadline for Notify Corp is in 7 days.",
+        "ES deadline for Notify Corp is in 3 days.",
+        "ES deadline for Notify Corp is tomorrow.",
+    ]
     assert [item["scheduled_at"][:10] for item in deadline_notifications] == [
         (deadline_date - timedelta(days=7)).isoformat(),
         (deadline_date - timedelta(days=3)).isoformat(),

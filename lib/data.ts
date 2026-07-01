@@ -153,13 +153,18 @@ export function parseLocalDate(dateIso: string) {
   return new Date(year, month - 1, day)
 }
 
-export const TODAY = parseLocalDate("2026-06-25")
+export function getToday() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+export const TODAY = getToday()
 
 export function companyName(id: string) {
   return companies.find((c) => c.id === id)?.name ?? "—"
 }
 
-export function daysUntil(dateIso: string, from: Date = TODAY) {
+export function daysUntil(dateIso: string, from: Date = getToday()) {
   const d = parseLocalDate(dateIso)
   const diff = Math.ceil((d.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
   return diff

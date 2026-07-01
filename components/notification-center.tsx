@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { Bell, Check, Trash2, X } from "lucide-react"
 
 import { apiRequest } from "@/lib/api"
@@ -190,12 +191,13 @@ export function NotificationCenter() {
         )}
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
-          <div className="fixed inset-0 z-[990] bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-[1000] sm:hidden">{panel}</div>
-          <div className="fixed right-5 top-20 z-[1000] hidden sm:block md:right-8">{panel}</div>
-        </>
+          <div className="fixed inset-0 z-[9990] bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-[10000] sm:hidden">{panel}</div>
+          <div className="fixed right-6 top-24 z-[10000] hidden sm:block xl:right-[22rem]">{panel}</div>
+        </>,
+        document.body,
       )}
     </div>
   )

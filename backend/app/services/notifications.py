@@ -24,6 +24,12 @@ def _event_start_at(event: Event) -> datetime:
     return datetime.combine(event.start_date, event.start_time or time(hour=9), tzinfo=JST)
 
 
+def _deadline_message(company_name: str, days_before: int) -> str:
+    if days_before == 1:
+        return f"ES deadline for {company_name} is tomorrow."
+    return f"ES deadline for {company_name} is in {days_before} days."
+
+
 def _sync_related_notifications(
     db: Session,
     *,
@@ -80,7 +86,7 @@ def sync_company_notifications(company: Company, db: Session) -> None:
             specs.append(
                 {
                     "title": "ES Deadline",
-                    "message": f"ES deadline for {company.name} is approaching.",
+                    "message": _deadline_message(company.name, days_before),
                     "type": "deadline",
                     "scheduled_at": _at_local_time(scheduled_day),
                 }
