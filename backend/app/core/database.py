@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import get_settings
@@ -23,68 +23,3 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
-
-
-def init_db() -> None:
-    from app.models import company, event, notification, user  # noqa: F401
-
-    Base.metadata.create_all(bind=engine)
-    ensure_user_columns()
-    ensure_reminder_settings_columns()
-
-
-def ensure_user_columns() -> None:
-    inspector = inspect(engine)
-    if "users" not in inspector.get_table_names():
-        return
-
-    existing_columns = {column["name"] for column in inspector.get_columns("users")}
-    if "theme" in existing_columns:
-        return
-
-    dialect = engine.dialect.name
-    with engine.begin() as connection:
-        if dialect == "postgresql":
-            connection.execute(
-                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(20) NOT NULL DEFAULT 'light'")
-            )
-        else:
-            connection.execute(text("ALTER TABLE users ADD COLUMN theme VARCHAR(20) NOT NULL DEFAULT 'light'"))
-
-
-def ensure_reminder_settings_columns() -> None:
-    inspector = inspect(engine)
-    if "reminder_settings" not in inspector.get_table_names():
-        return
-
-    existing_columns = {column["name"] for column in inspector.get_columns("reminder_settings")}
-    columns = {
-        "es_deadline_enabled": True,
-        "interview_enabled": True,
-        "internship_enabled": True,
-        "info_session_enabled": True,
-        "offer_enabled": True,
-        "weekly_summary_enabled": False,
-    }
-
-    dialect = engine.dialect.name
-    with engine.begin() as connection:
-        for column_name, default in columns.items():
-            if column_name in existing_columns:
-                continue
-            if dialect == "postgresql":
-                default_sql = "true" if default else "false"
-                connection.execute(
-                    text(
-                        f"ALTER TABLE reminder_settings "
-                        f"ADD COLUMN IF NOT EXISTS {column_name} BOOLEAN NOT NULL DEFAULT {default_sql}"
-                    )
-                )
-            else:
-                default_sql = 1 if default else 0
-                connection.execute(
-                    text(
-                        f"ALTER TABLE reminder_settings "
-                        f"ADD COLUMN {column_name} BOOLEAN NOT NULL DEFAULT {default_sql}"
-                    )
-                )

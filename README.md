@@ -28,7 +28,14 @@ npm install
 
 ## Start
 
-Start the backend first at `http://127.0.0.1:8000`, then:
+Start the backend first at `http://127.0.0.1:8000`. Before starting FastAPI, run backend migrations:
+
+```powershell
+cd backend
+alembic upgrade head
+```
+
+Then start the frontend:
 
 ```powershell
 cd C:\Users\yuzu5\Documents\Codex\2026-06-25\fastapi-next-js-web-fastapi-sqlite\work\recruitment-app-redesign
