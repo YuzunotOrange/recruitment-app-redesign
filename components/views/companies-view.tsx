@@ -456,7 +456,7 @@ export function CompaniesView() {
                       </td>
                       <td className="px-4 py-3">
                         {company.es_deadline ? (
-                          <span className={dueSoon ? "font-medium text-destructive" : "text-muted-foreground"}>
+                          <span className={dueSoon ? "cyber-blink font-medium text-destructive" : "text-muted-foreground"}>
                             {formatLocalizedDate(company.es_deadline, language)}
                           </span>
                         ) : (

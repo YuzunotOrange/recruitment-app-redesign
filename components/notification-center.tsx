@@ -138,7 +138,7 @@ export function NotificationCenter() {
               <RadioTower className="cyber-pulse h-4 w-4 shrink-0 text-warning" />
               <p className="truncate font-mono text-[11px] font-bold uppercase text-foreground">Alert Signal</p>
             </div>
-            <span className="cyber-blink rounded-sm bg-warning px-1.5 py-0.5 font-mono text-[10px] font-black uppercase text-warning-foreground">
+            <span className="cyber-blink rounded-sm bg-warning px-1.5 py-0.5 font-mono text-[10px] font-black uppercase text-black">
               {signalStatus}
             </span>
           </div>

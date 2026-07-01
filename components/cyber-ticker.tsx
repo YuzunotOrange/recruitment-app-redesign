@@ -127,7 +127,7 @@ export function CyberTicker() {
           return (
             <div className="cyber-ticker-item" key={`${item.id}-${index}`}>
               <Icon className="h-3.5 w-3.5" />
-              <span className="cyber-ticker-label">{item.label}</span>
+              <span className={item.id.startsWith("deadline-") ? "cyber-blink cyber-ticker-label" : "cyber-ticker-label"}>{item.label}</span>
               <span className="truncate">{item.value}</span>
             </div>
           )

@@ -137,7 +137,7 @@ export function RightPanel() {
                     </p>
                     <p className="text-xs text-muted-foreground">{formatLocalizedDate(date, language)}</p>
                   </div>
-                  <StatusBadge tone={urgent ? "danger" : "neutral"}>{d === 0 ? text(language, copy.kpiToday) : `${d}d`}</StatusBadge>
+                  <StatusBadge tone={urgent ? "danger" : "neutral"} className={urgent ? "cyber-blink" : undefined}>{d === 0 ? text(language, copy.kpiToday) : `${d}d`}</StatusBadge>
                 </div>
               )
             })
