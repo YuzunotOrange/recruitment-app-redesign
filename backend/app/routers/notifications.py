@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.notification import Notification, ReminderSettings
 from app.models.user import User
+from app.services.notifications import is_current_or_future_notification
 from app.schemas.notification import (
     NotificationRead,
     ReadAllResponse,
@@ -48,7 +49,8 @@ def list_notifications(
         .where(Notification.user_id == current_user.id)
         .order_by(Notification.is_read.asc(), Notification.scheduled_at.asc(), Notification.created_at.desc())
     )
-    return list(db.scalars(stmt).all())
+    notifications = list(db.scalars(stmt).all())
+    return [notification for notification in notifications if is_current_or_future_notification(notification.scheduled_at)]
 
 
 @router.patch("/notifications/{notification_id}/read", response_model=NotificationRead)

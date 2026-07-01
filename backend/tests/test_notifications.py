@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
+from app.services.notifications import JST
 
 
 def current_user_id(client: TestClient, headers: dict[str, str]) -> int:
@@ -59,6 +60,21 @@ def test_notification_list_mark_read_read_all_and_delete(
     remaining = client.get("/notifications", headers=auth_headers)
     assert remaining.status_code == 200
     assert [item["id"] for item in remaining.json()] == [first.id]
+
+
+def test_past_scheduled_notifications_are_hidden(
+    client: TestClient,
+    db_session: Session,
+    auth_headers: dict[str, str],
+):
+    user_id = current_user_id(client, auth_headers)
+    past = create_notification(db_session, user_id, title="Past", scheduled_at=datetime.now(JST) - timedelta(days=1))
+    future = create_notification(db_session, user_id, title="Future", scheduled_at=datetime.now(JST) + timedelta(days=1))
+
+    listed = client.get("/notifications", headers=auth_headers)
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [future.id]
+    assert past.id not in {item["id"] for item in listed.json()}
 
 
 def test_notification_user_isolation(
@@ -191,6 +207,34 @@ def test_company_create_update_generates_deadline_and_offer_notifications(
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     assert notifications.json() == []
+
+
+def test_company_deadline_skips_already_past_reminder_dates(
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    deadline_date = datetime.now(JST).date() + timedelta(days=2)
+    created = client.post(
+        "/companies",
+        headers=auth_headers,
+        json={
+            "name": "Soon Corp",
+            "industry": "it",
+            "priority": "A",
+            "importance": 4,
+            "status": "planned",
+            "es_deadline": deadline_date.isoformat(),
+            "note": None,
+        },
+    )
+    assert created.status_code == 201
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
+    assert len(deadline_notifications) == 1
+    assert deadline_notifications[0]["message"] == "ES deadline for Soon Corp is tomorrow."
+    assert deadline_notifications[0]["scheduled_at"][:10] == (deadline_date - timedelta(days=1)).isoformat()
 
 
 def test_event_create_update_generates_interview_and_internship_notifications(

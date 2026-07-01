@@ -24,6 +24,19 @@ def _event_start_at(event: Event) -> datetime:
     return datetime.combine(event.start_date, event.start_time or time(hour=9), tzinfo=JST)
 
 
+def _to_jst(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=JST)
+    return value.astimezone(JST)
+
+
+def is_current_or_future_notification(value: datetime | None, today: date | None = None) -> bool:
+    if value is None:
+        return True
+    baseline = today or datetime.now(JST).date()
+    return _to_jst(value).date() >= baseline
+
+
 def _deadline_message(company_name: str, days_before: int) -> str:
     if days_before == 1:
         return f"ES deadline for {company_name} is tomorrow."
@@ -79,16 +92,20 @@ def _sync_related_notifications(
 
 def sync_company_notifications(company: Company, db: Session) -> None:
     specs: list[NotificationSpec] = []
+    today = datetime.now(JST).date()
 
     if company.es_deadline:
         for days_before in (7, 3, 1):
             scheduled_day = company.es_deadline - timedelta(days=days_before)
+            scheduled_at = _at_local_time(scheduled_day)
+            if not is_current_or_future_notification(scheduled_at, today):
+                continue
             specs.append(
                 {
                     "title": "ES Deadline",
                     "message": _deadline_message(company.name, days_before),
                     "type": "deadline",
-                    "scheduled_at": _at_local_time(scheduled_day),
+                    "scheduled_at": scheduled_at,
                 }
             )
 
@@ -115,34 +132,34 @@ def sync_company_notifications(company: Company, db: Session) -> None:
 def sync_event_notifications(event: Event, db: Session) -> None:
     start_at = _event_start_at(event)
     specs: list[NotificationSpec] = []
+    today = datetime.now(JST).date()
 
     if event.type == "interview":
-        specs.append(
-            {
-                "title": "Interview Reminder",
-                "message": f"{event.title} is scheduled tomorrow.",
-                "type": "interview",
-                "scheduled_at": start_at - timedelta(days=1),
-            }
-        )
-        specs.append(
-            {
-                "title": "Interview Reminder",
-                "message": f"{event.title} starts in 30 minutes.",
-                "type": "interview",
-                "scheduled_at": start_at - timedelta(minutes=30),
-            }
-        )
+        for scheduled_at, message in (
+            (start_at - timedelta(days=1), f"{event.title} is scheduled tomorrow."),
+            (start_at - timedelta(minutes=30), f"{event.title} starts in 30 minutes."),
+        ):
+            if is_current_or_future_notification(scheduled_at, today):
+                specs.append(
+                    {
+                        "title": "Interview Reminder",
+                        "message": message,
+                        "type": "interview",
+                        "scheduled_at": scheduled_at,
+                    }
+                )
 
     if event.type == "intern":
-        specs.append(
-            {
-                "title": "Internship Reminder",
-                "message": f"{event.title} starts on {event.start_date.isoformat()}.",
-                "type": "internship",
-                "scheduled_at": start_at - timedelta(days=1),
-            }
-        )
+        scheduled_at = start_at - timedelta(days=1)
+        if is_current_or_future_notification(scheduled_at, today):
+            specs.append(
+                {
+                    "title": "Internship Reminder",
+                    "message": f"{event.title} starts on {event.start_date.isoformat()}.",
+                    "type": "internship",
+                    "scheduled_at": scheduled_at,
+                }
+            )
 
     if event.type == "offer":
         specs.append(
@@ -155,14 +172,16 @@ def sync_event_notifications(event: Event, db: Session) -> None:
         )
 
     if event.type == "briefing":
-        specs.append(
-            {
-                "title": "Explanation Session Reminder",
-                "message": f"{event.title} is scheduled tomorrow.",
-                "type": "custom",
-                "scheduled_at": start_at - timedelta(days=1),
-            }
-        )
+        scheduled_at = start_at - timedelta(days=1)
+        if is_current_or_future_notification(scheduled_at, today):
+            specs.append(
+                {
+                    "title": "Explanation Session Reminder",
+                    "message": f"{event.title} is scheduled tomorrow.",
+                    "type": "custom",
+                    "scheduled_at": scheduled_at,
+                }
+            )
 
     _sync_related_notifications(
         db,
