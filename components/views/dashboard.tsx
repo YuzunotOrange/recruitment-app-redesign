@@ -3,14 +3,18 @@
 import type { CSSProperties } from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
+  Activity,
   AlertTriangle,
   ArrowRight,
   Building2,
   CalendarCheck,
   Clock,
   FileText,
+  Flame,
+  Gauge,
   GraduationCap,
   ListTodo,
+  ShieldCheck,
   TrendingUp,
   Trophy,
 } from "lucide-react"
@@ -218,6 +222,188 @@ function getCompanyName(item: UpcomingEvent | UpcomingDeadline) {
   return item.company_name ?? item.company ?? "-"
 }
 
+function getDeadlineDate(deadline: UpcomingDeadline) {
+  return deadline.es_deadline ?? deadline.deadline ?? ""
+}
+
+function clamp(value: number, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, value))
+}
+
+type CareerLevel = {
+  level: string
+  title: string
+  description: { en: string; ja: string }
+}
+
+type ProgressScore = {
+  readiness: number
+  deadlineRisk: number
+  weekActions: number
+  incompleteTasks: number
+  careerLevel: CareerLevel
+  nextFocus: { en: string; ja: string }
+}
+
+function getCareerLevel(readiness: number, interviews: number, offers: number): CareerLevel {
+  if (offers > 0 || readiness >= 86) {
+    return {
+      level: "Lv.5",
+      title: "Edge",
+      description: { en: "Offer-ready", ja: "内定射程圏" },
+    }
+  }
+
+  if (interviews >= 2 || readiness >= 68) {
+    return {
+      level: "Lv.4",
+      title: "Closer",
+      description: { en: "Final push", ja: "詰めの段階" },
+    }
+  }
+
+  if (readiness >= 50) {
+    return {
+      level: "Lv.3",
+      title: "Runner",
+      description: { en: "Selection running", ja: "選考進行中" },
+    }
+  }
+
+  if (readiness >= 30) {
+    return {
+      level: "Lv.2",
+      title: "Scout",
+      description: { en: "Pipeline building", ja: "応募先拡大中" },
+    }
+  }
+
+  return {
+    level: "Lv.1",
+    title: "Entry",
+    description: { en: "Setup phase", ja: "準備フェーズ" },
+  }
+}
+
+function getProgressScore(summary: DashboardSummary): ProgressScore {
+  const counts = summary.company_status_counts
+  const total = Math.max(summary.kpis.total_companies, 1)
+  const planned = counts.planned ?? 0
+  const esSubmitted = counts.es_submitted ?? 0
+  const interviews = summary.kpis.interviews
+  const offers = summary.kpis.offers
+  const declined = counts.declined ?? 0
+  const rejected = (counts.es_rejected ?? 0) + (counts.spi_rejected ?? 0)
+
+  const eventsThisWeek = (summary.upcoming_events ?? []).filter((event) => {
+    const date = getEventDate(event)
+    if (!date) return false
+    const days = daysUntil(date)
+    return days >= 0 && days <= 7
+  }).length
+
+  const deadlinesThisWeek = (summary.upcoming_deadlines ?? []).filter((deadline) => {
+    const date = getDeadlineDate(deadline)
+    if (!date) return false
+    const days = daysUntil(date)
+    return days >= 0 && days <= 7
+  }).length
+
+  const nearestDeadlineRisk = (summary.upcoming_deadlines ?? []).reduce((risk, deadline) => {
+    const date = getDeadlineDate(deadline)
+    if (!date) return risk
+    const days = daysUntil(date)
+
+    if (days < 0) return risk
+    if (days === 0) return Math.max(risk, 95)
+    if (days <= 1) return Math.max(risk, 86)
+    if (days <= 3) return Math.max(risk, 72)
+    if (days <= 7) return Math.max(risk, 48)
+    return Math.max(risk, 18)
+  }, 0)
+
+  const statusReadiness =
+    (planned * 20 + esSubmitted * 50 + interviews * 76 + offers * 100 + declined * 82 + rejected * 18) / total
+  const deadlineRisk = clamp(
+    Math.round(nearestDeadlineRisk + summary.kpis.deadline_soon * 6 + (summary.kpis.today_tasks ?? 0) * 5),
+  )
+  const readiness = clamp(
+    Math.round(
+      statusReadiness * 0.68 +
+        Math.min(18, eventsThisWeek * 5) +
+        Math.min(10, (summary.kpis.internships ?? 0) * 2) +
+        (deadlineRisk <= 30 ? 8 : deadlineRisk >= 75 ? -8 : 0),
+    ),
+  )
+  const incompleteTasks = planned + esSubmitted + summary.kpis.deadline_soon + (summary.kpis.today_tasks ?? 0)
+  const weekActions = eventsThisWeek + deadlinesThisWeek + (summary.kpis.today_tasks ?? 0) + esSubmitted
+  const nextFocus =
+    deadlineRisk >= 70
+      ? { en: "Triage deadlines first", ja: "締切対応を最優先" }
+      : readiness < 50
+        ? { en: "Add applications and events", ja: "応募と予定を増やす" }
+        : weekActions <= 1
+          ? { en: "Schedule the next action", ja: "次の行動を予定化" }
+          : { en: "Keep the selection pace", ja: "選考ペース維持" }
+
+  return {
+    readiness,
+    deadlineRisk,
+    weekActions,
+    incompleteTasks,
+    careerLevel: getCareerLevel(readiness, interviews, offers),
+    nextFocus,
+  }
+}
+
+function ScoreBar({ value, tone }: { value: number; tone: Tone }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className={`h-full rounded-full ${toneBar[tone]}`} style={{ width: `${clamp(value)}%` }} />
+    </div>
+  )
+}
+
+function ProgressScoreCard({
+  label,
+  sublabel,
+  value,
+  suffix,
+  icon: Icon,
+  tone,
+  language,
+}: {
+  label: { en: string; ja: string }
+  sublabel: { en: string; ja: string }
+  value: number
+  suffix?: string
+  icon: typeof Gauge
+  tone: Tone
+  language: LanguageMode
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-background/55 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${toneBg[tone]}`}>
+          <Icon className={`h-5 w-5 ${toneText[tone]}`} />
+        </div>
+        <span className={`text-2xl font-semibold tabular-nums ${toneText[tone]}`}>
+          {value}
+          {suffix && <span className="text-sm">{suffix}</span>}
+        </span>
+      </div>
+      <div className="mt-4 space-y-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{text(language, label)}</p>
+          <p className="text-xs text-muted-foreground">{text(language, sublabel)}</p>
+        </div>
+        {suffix === "%" && <ScoreBar value={value} tone={tone} />}
+      </div>
+    </div>
+  )
+}
+
+
 export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void }) {
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary)
   const [loading, setLoading] = useState(true)
@@ -309,6 +495,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     [summary],
   )
 
+  const progressScore = useMemo(() => getProgressScore(summary), [summary])
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
   const failedCount = (summary.company_status_counts.es_rejected ?? 0) + (summary.company_status_counts.spi_rejected ?? 0)
   const clearedCount = summary.kpis.interviews + summary.kpis.offers
@@ -373,6 +560,66 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
           {error}
         </div>
       )}
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Career Progress Score</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-foreground">就活進捗スコア</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {text(language, progressScore.nextFocus)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-left sm:min-w-52 sm:text-right">
+            <p className="text-xs font-medium text-muted-foreground">Career Level</p>
+            <p className="text-2xl font-semibold text-accent">
+              {progressScore.careerLevel.level} {progressScore.careerLevel.title}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {text(language, progressScore.careerLevel.description)}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <ProgressScoreCard
+            label={{ en: "Application readiness", ja: "応募準備度" }}
+            sublabel={{ en: "Based on status and upcoming actions", ja: "企業ステータスと直近行動から算出" }}
+            value={progressScore.readiness}
+            suffix="%"
+            icon={Gauge}
+            tone="success"
+            language={language}
+          />
+          <ProgressScoreCard
+            label={{ en: "Deadline risk", ja: "締切リスク" }}
+            sublabel={{ en: "ES deadlines, due tasks, and proximity", ja: "ES締切・未完了・近さを反映" }}
+            value={progressScore.deadlineRisk}
+            suffix="%"
+            icon={Flame}
+            tone={progressScore.deadlineRisk >= 70 ? "danger" : progressScore.deadlineRisk >= 45 ? "warning" : "info"}
+            language={language}
+          />
+          <ProgressScoreCard
+            label={{ en: "This week's actions", ja: "今週の行動数" }}
+            sublabel={{ en: "Events, deadlines, tasks, and ES flow", ja: "予定・締切・タスク・ES進行の合計" }}
+            value={progressScore.weekActions}
+            icon={Activity}
+            tone="info"
+            language={language}
+          />
+          <ProgressScoreCard
+            label={{ en: "Open tasks", ja: "未完了タスク" }}
+            sublabel={{ en: "Planned, ES, deadlines, and today", ja: "応募予定・ES・締切・今日の残数" }}
+            value={progressScore.incompleteTasks}
+            icon={ListTodo}
+            tone={progressScore.incompleteTasks > 5 ? "warning" : "neutral"}
+            language={language}
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {cards.map((card) => {
