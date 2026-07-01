@@ -443,6 +443,8 @@
 }
 
 [data-theme="cyberpunk"] .cyber-status-hud {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
@@ -502,24 +504,26 @@
   overflow: hidden;
 }
 
-[data-theme="cyberpunk"] .cyber-hud-panel::before {
+[data-theme="cyberpunk"] .cyber-status-hud::before {
   content: "";
   position: absolute;
-  inset: -20% 0 auto;
-  height: 42%;
+  inset: -35% 0 auto;
+  z-index: 0;
+  height: 62%;
   background: linear-gradient(
     180deg,
     transparent,
-    rgba(0, 234, 255, 0.08),
-    rgba(255, 43, 214, 0.11),
+    rgba(0, 234, 255, 0.11),
+    rgba(255, 43, 214, 0.14),
+    rgba(255, 216, 77, 0.06),
     transparent
   );
-  transform: translateY(-120%);
+  transform: translateY(-130%);
   animation: cyber-scan-sweep 6.5s ease-in-out infinite;
   pointer-events: none;
 }
 
-[data-theme="cyberpunk"] .cyber-hud-panel > * {
+[data-theme="cyberpunk"] .cyber-status-hud > * {
   position: relative;
   z-index: 1;
 }
@@ -747,7 +751,7 @@
   [data-theme="cyberpunk"] .cyber-glitch-shift,
   [data-theme="cyberpunk"] .cyber-scan-sweep-x::after,
   [data-theme="cyberpunk"] .cyber-ticker-track,
-  [data-theme="cyberpunk"] .cyber-hud-panel::before {
+  [data-theme="cyberpunk"] .cyber-status-hud::before {
     animation: none;
   }
 
