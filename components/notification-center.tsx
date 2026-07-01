@@ -240,13 +240,15 @@ export function NotificationCenter() {
       </button>
 
       {open && typeof document !== "undefined" && createPortal(
-        <>
-          <div className="fixed inset-0 z-[9990] bg-black/35 backdrop-blur-[1px] sm:hidden" onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-[10000] sm:hidden">{panel}</div>
-          <div className="fixed right-4 top-20 z-[10000] hidden w-[min(24rem,calc(100vw-2rem))] sm:block lg:right-6 xl:right-[22rem]">
+        <div className="fixed inset-0 z-[10000] pointer-events-none">
+          <div
+            className="absolute inset-0 bg-black/35 backdrop-blur-[1px] pointer-events-auto sm:hidden"
+            onClick={() => setOpen(false)}
+          />
+          <div className="pointer-events-auto fixed bottom-4 left-4 right-4 max-w-[calc(100vw-2rem)] sm:bottom-auto sm:left-auto sm:right-4 sm:top-20 sm:w-96 lg:right-6 xl:right-[22rem]">
             {panel}
           </div>
-        </>,
+        </div>,
         document.body,
       )}
     </div>
