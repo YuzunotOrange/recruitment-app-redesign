@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   AlertTriangle,
   ArrowRight,
@@ -22,6 +22,7 @@ import {
 } from "@/lib/data"
 import { apiRequest } from "@/lib/api"
 import { copy, formatLocalizedDate, secondaryText, text, useLanguagePreference, type LanguageMode } from "@/lib/language"
+import { APP_DATA_REFRESH_EVENT } from "@/lib/notification-events"
 import { StatusBadge } from "@/components/status-badge"
 import type { ViewKey } from "@/components/sidebar"
 
@@ -222,29 +223,28 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   const [error, setError] = useState<string | null>(null)
   const language = useLanguagePreference()
 
-  useEffect(() => {
-    let cancelled = false
+  const loadSummary = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-    async function loadSummary() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const data = await apiRequest<DashboardSummary>("/dashboard/summary")
-        if (!cancelled) setSummary(data)
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load dashboard.")
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    loadSummary()
-
-    return () => {
-      cancelled = true
+    try {
+      const data = await apiRequest<DashboardSummary>("/dashboard/summary")
+      setSummary(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard.")
+    } finally {
+      setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    loadSummary()
+  }, [loadSummary])
+
+  useEffect(() => {
+    window.addEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
+    return () => window.removeEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
+  }, [loadSummary])
 
   const cards = useMemo(
     () => [

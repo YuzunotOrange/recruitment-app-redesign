@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { AlertTriangle, Bell, CalendarClock, CheckCircle2 } from "lucide-react"
 import { apiRequest } from "@/lib/api"
 import { daysUntil, TODAY } from "@/lib/data"
 import { copy, formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
+import { APP_DATA_REFRESH_EVENT } from "@/lib/notification-events"
 import { StatusBadge } from "@/components/status-badge"
 
 type DashboardSummary = {
@@ -65,29 +66,28 @@ export function RightPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let active = true
+  const loadSummary = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-    async function loadSummary() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const data = await apiRequest<DashboardSummary>("/dashboard/summary")
-        if (active) setSummary(data)
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Failed to load summary.")
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-
-    loadSummary()
-
-    return () => {
-      active = false
+    try {
+      const data = await apiRequest<DashboardSummary>("/dashboard/summary")
+      setSummary(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load summary.")
+    } finally {
+      setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    loadSummary()
+  }, [loadSummary])
+
+  useEffect(() => {
+    window.addEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
+    return () => window.removeEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
+  }, [loadSummary])
 
   const deadlines = (summary.upcoming_deadlines ?? [])
     .filter((deadline) => getDeadlineDate(deadline) && daysUntil(getDeadlineDate(deadline)) >= 0)

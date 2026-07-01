@@ -221,6 +221,7 @@ def test_event_create_update_generates_interview_and_internship_notifications(
         (start_day - timedelta(days=1)).isoformat(),
         start_day.isoformat(),
     ]
+    assert [item["scheduled_at"][11:16] for item in interview_notifications] == ["13:00", "12:30"]
 
     original_ids = [item["id"] for item in interview_notifications]
     new_start_day = start_day + timedelta(days=2)

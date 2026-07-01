@@ -1,11 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 
 NotificationType = Literal["deadline", "interview", "internship", "offer", "custom", "system"]
 RelatedType = Literal["company", "event"]
+JST = timezone(timedelta(hours=9), "JST")
 
 
 class NotificationRead(BaseModel):
@@ -23,6 +24,14 @@ class NotificationRead(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("scheduled_at")
+    def serialize_scheduled_at(self, value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=JST)
+        return value.astimezone(JST).isoformat()
 
 
 class ReadAllResponse(BaseModel):

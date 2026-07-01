@@ -12,7 +12,7 @@ import {
 } from "@/lib/data"
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
-import { requestNotificationRefresh } from "@/lib/notification-events"
+import { requestAppDataRefresh } from "@/lib/notification-events"
 import { SplitDateInput } from "@/components/split-date-input"
 import { PriorityBadge, Stars, StatusBadge } from "@/components/status-badge"
 
@@ -194,7 +194,7 @@ export function CompaniesView() {
         })
         await refreshCompanies()
       }
-      requestNotificationRefresh()
+      requestAppDataRefresh()
       resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save company.")
@@ -215,7 +215,7 @@ export function CompaniesView() {
     try {
       await apiRequest<void>(`/companies/${companyId}`, { method: "DELETE" })
       await refreshCompanies()
-      requestNotificationRefresh()
+      requestAppDataRefresh()
       if (editingId === companyId) resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete company.")
@@ -230,7 +230,7 @@ export function CompaniesView() {
         body: JSON.stringify({ status }),
       })
       await refreshCompanies()
-      requestNotificationRefresh()
+      requestAppDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status.")
     }

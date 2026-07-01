@@ -175,7 +175,7 @@ export function NotificationCenter() {
   )
 
   return (
-    <div className="relative z-[100]">
+    <div className="relative z-[1000]">
       <button
         type="button"
         onClick={toggleOpen}
@@ -192,9 +192,9 @@ export function NotificationCenter() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-[90] bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-[100] sm:hidden">{panel}</div>
-          <div className="absolute right-0 top-full z-[100] mt-2 hidden sm:block">{panel}</div>
+          <div className="fixed inset-0 z-[990] bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-[1000] sm:hidden">{panel}</div>
+          <div className="fixed right-5 top-20 z-[1000] hidden sm:block md:right-8">{panel}</div>
         </>
       )}
     </div>

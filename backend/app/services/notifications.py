@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,17 +10,18 @@ from app.models.notification import Notification
 
 DEADLINE_NOTIFICATION_TYPES = {"deadline", "offer"}
 EVENT_NOTIFICATION_TYPES = {"interview", "internship", "offer", "custom"}
+JST = timezone(timedelta(hours=9), "JST")
 
 
 type NotificationSpec = dict[str, str | int | datetime]
 
 
 def _at_local_time(day: date, hour: int = 9, minute: int = 0) -> datetime:
-    return datetime.combine(day, time(hour=hour, minute=minute))
+    return datetime.combine(day, time(hour=hour, minute=minute), tzinfo=JST)
 
 
 def _event_start_at(event: Event) -> datetime:
-    return datetime.combine(event.start_date, event.start_time or time(hour=9))
+    return datetime.combine(event.start_date, event.start_time or time(hour=9), tzinfo=JST)
 
 
 def _sync_related_notifications(
@@ -91,7 +92,7 @@ def sync_company_notifications(company: Company, db: Session) -> None:
                 "title": "Offer Received",
                 "message": f"Congratulations on your offer from {company.name}.",
                 "type": "offer",
-                "scheduled_at": datetime.now(),
+                "scheduled_at": datetime.now(JST),
             }
         )
 
@@ -143,7 +144,7 @@ def sync_event_notifications(event: Event, db: Session) -> None:
                 "title": "Offer Received",
                 "message": f"Congratulations on your offer: {event.title}.",
                 "type": "offer",
-                "scheduled_at": datetime.now(),
+                "scheduled_at": datetime.now(JST),
             }
         )
 
