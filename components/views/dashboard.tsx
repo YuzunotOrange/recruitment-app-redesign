@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   TrendingUp,
   Trophy,
+  X,
 } from "lucide-react"
 import {
   companyStatusMeta,
@@ -214,12 +215,119 @@ function IndustryDonut({
   )
 }
 
+function eventTimeLabel(event: ApiEvent) {
+  return event.start_time ? event.start_time.slice(0, 5) : "No time"
+}
+
+function companyMeta(company: ApiCompany, language: LanguageMode) {
+  const status = companyStatusMeta[company.status]
+  const industry = industryMeta[company.industry]
+  return [
+    text(language, status),
+    text(language, industry),
+    `Priority ${company.priority}`,
+  ].join(" / ")
+}
+
+function eventMeta(event: ApiEvent, language: LanguageMode) {
+  const company = event.company_name ?? text(language, { en: "No company", ja: "企業未設定" })
+  return `${company} / ${eventTimeLabel(event)}`
+}
+
+function deadlineItemFromCompany(company: ApiCompany, language: LanguageMode): DetailItem | null {
+  if (!company.es_deadline) return null
+  const days = daysUntil(company.es_deadline)
+  if (days < 0 || days > 7) return null
+
+  return {
+    id: `company-deadline-${company.id}`,
+    title: `${company.name} ES`,
+    meta: days === 0 ? text(language, { en: "Due today", ja: "今日が締切" }) : `${days}d left`,
+    date: company.es_deadline,
+    tone: days <= 1 ? "danger" : "warning",
+    badge: text(language, { en: "Deadline", ja: "締切" }),
+  }
+}
+
+function deadlineItemFromEvent(event: ApiEvent, language: LanguageMode): DetailItem | null {
+  if (event.type !== "deadline") return null
+  const days = daysUntil(event.start_date)
+  if (days < 0 || days > 7) return null
+
+  return {
+    id: `event-deadline-${event.id}`,
+    title: event.title,
+    meta: eventMeta(event, language),
+    date: event.start_date,
+    tone: days <= 1 ? "danger" : "warning",
+    badge: text(language, { en: "Deadline", ja: "締切" }),
+  }
+}
+
+function isTodayEvent(event: ApiEvent) {
+  return daysUntil(event.start_date) <= 0 && daysUntil(event.end_date) >= 0
+}
+
 function getEventDate(event: UpcomingEvent) {
   return event.start_at ?? event.start ?? ""
 }
 
 function getCompanyName(item: UpcomingEvent | UpcomingDeadline) {
   return item.company_name ?? item.company ?? "-"
+}
+
+type ApiCompany = {
+  id: number
+  name: string
+  industry: Industry
+  priority: string
+  importance: number
+  status: CompanyStatus
+  es_deadline: string | null
+  note: string | null
+}
+
+type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "offer" | "other"
+
+type ApiEvent = {
+  id: number
+  company_id: number | null
+  company_name: string | null
+  title: string
+  start_date: string
+  end_date: string
+  start_time: string | null
+  type: EventType
+  note: string | null
+}
+
+type DetailItem = {
+  id: string
+  title: string
+  meta: string
+  date?: string
+  tone: Tone
+  badge?: string
+}
+
+type DetailKey =
+  | "companies"
+  | "es"
+  | "interviews"
+  | "awaiting"
+  | "internships"
+  | "offers"
+  | "deadlines"
+  | "today"
+
+type DashboardCard = {
+  key: DetailKey
+  en: string
+  ja: string
+  value: number
+  icon: typeof Building2
+  tone: Tone
+  items: DetailItem[]
 }
 
 function getDeadlineDate(deadline: UpcomingDeadline) {
@@ -406,6 +514,9 @@ function ProgressScoreCard({
 
 export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void }) {
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary)
+  const [companies, setCompanies] = useState<ApiCompany[]>([])
+  const [events, setEvents] = useState<ApiEvent[]>([])
+  const [activeDetail, setActiveDetail] = useState<DetailKey | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const language = useLanguagePreference()
@@ -415,8 +526,14 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     setError(null)
 
     try {
-      const data = await apiRequest<DashboardSummary>("/dashboard/summary")
-      setSummary(data)
+      const [summaryData, companyData, eventData] = await Promise.all([
+        apiRequest<DashboardSummary>("/dashboard/summary"),
+        apiRequest<ApiCompany[]>("/companies"),
+        apiRequest<ApiEvent[]>("/events"),
+      ])
+      setSummary(summaryData)
+      setCompanies(companyData)
+      setEvents(eventData)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard.")
     } finally {
@@ -433,66 +550,119 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     return () => window.removeEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
   }, [loadSummary])
 
-  const cards = useMemo(
-    () => [
-      {
-        en: "Companies",
-        ja: "企業",
-        value: summary.kpis.total_companies,
-        icon: Building2,
-        tone: "info" as Tone,
-      },
-      {
-        en: "ES in review",
-        ja: "ES確認中",
-        value: summary.kpis.es_in_review,
-        icon: FileText,
+  const detailsByKey = useMemo<Record<DetailKey, DetailItem[]>>(() => {
+    const allCompanyItems = companies.map((company) => ({
+      id: `company-${company.id}`,
+      title: company.name,
+      meta: companyMeta(company, language),
+      date: company.es_deadline ?? undefined,
+      tone: companyStatusMeta[company.status].tone,
+      badge: text(language, companyStatusMeta[company.status]),
+    }))
+    const esItems = companies
+      .filter((company) => company.status === "es_submitted")
+      .map((company) => ({
+        id: `es-${company.id}`,
+        title: company.name,
+        meta: company.es_deadline
+          ? `ES deadline ${formatLocalizedDate(company.es_deadline, language)}`
+          : text(language, { en: "ES in review", ja: "ES確認中" }),
+        date: company.es_deadline ?? undefined,
         tone: "warning" as Tone,
-      },
-      {
-        en: "Interviews",
-        ja: "面接",
-        value: summary.kpis.interviews,
-        icon: CalendarCheck,
+        badge: "ES",
+      }))
+    const interviewItems = events
+      .filter((event) => event.type === "interview")
+      .map((event) => ({
+        id: `interview-${event.id}`,
+        title: event.title,
+        meta: eventMeta(event, language),
+        date: event.start_date,
         tone: "info" as Tone,
-      },
-      {
-        en: "Awaiting",
-        ja: "応募予定",
-        value: summary.kpis.awaiting,
-        icon: Clock,
+        badge: text(language, { en: "Interview", ja: "面接" }),
+      }))
+    const awaitingItems = companies
+      .filter((company) => company.status === "planned")
+      .map((company) => ({
+        id: `planned-${company.id}`,
+        title: company.name,
+        meta: companyMeta(company, language),
+        date: company.es_deadline ?? undefined,
         tone: "neutral" as Tone,
-      },
-      {
-        en: "Internships",
-        ja: "インターン",
-        value: summary.kpis.internships ?? 0,
-        icon: GraduationCap,
-        tone: "info" as Tone,
-      },
-      {
-        en: "Offers",
-        ja: "内定",
-        value: summary.kpis.offers,
-        icon: Trophy,
+        badge: text(language, { en: "Planned", ja: "応募予定" }),
+      }))
+    const internshipItems = events
+      .filter((event) => event.type === "intern")
+      .map((event) => ({
+        id: `intern-${event.id}`,
+        title: event.title,
+        meta: eventMeta(event, language),
+        date: event.start_date,
         tone: "success" as Tone,
-      },
-      {
-        en: "Due <=7d",
-        ja: "7日以内",
-        value: summary.kpis.deadline_soon,
-        icon: AlertTriangle,
-        tone: "danger" as Tone,
-      },
-      {
-        en: "Today",
-        ja: "今日",
-        value: summary.kpis.today_tasks ?? 0,
-        icon: ListTodo,
-        tone: "neutral" as Tone,
-      },
+        badge: text(language, { en: "Intern", ja: "インターン" }),
+      }))
+    const offerItems = companies
+      .filter((company) => company.status === "offer")
+      .map((company) => ({
+        id: `offer-${company.id}`,
+        title: company.name,
+        meta: companyMeta(company, language),
+        tone: "success" as Tone,
+        badge: text(language, { en: "Offer", ja: "内定" }),
+      }))
+    const deadlineItems = [
+      ...companies.map((company) => deadlineItemFromCompany(company, language)),
+      ...events.map((event) => deadlineItemFromEvent(event, language)),
+    ]
+      .filter((item): item is DetailItem => Boolean(item))
+      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))
+    const todayItems = [
+      ...events
+        .filter(isTodayEvent)
+        .map((event) => ({
+          id: `today-event-${event.id}`,
+          title: event.title,
+          meta: eventMeta(event, language),
+          date: event.start_date,
+          tone: event.type === "deadline" ? "danger" as Tone : "info" as Tone,
+          badge: event.type === "deadline" ? text(language, { en: "Deadline", ja: "締切" }) : text(language, { en: "Today", ja: "今日" }),
+        })),
+      ...companies
+        .filter((company) => company.es_deadline && daysUntil(company.es_deadline) === 0)
+        .map((company) => ({
+          id: `today-company-${company.id}`,
+          title: `${company.name} ES`,
+          meta: text(language, { en: "Due today", ja: "今日が締切" }),
+          date: company.es_deadline ?? undefined,
+          tone: "danger" as Tone,
+          badge: text(language, { en: "Deadline", ja: "締切" }),
+        })),
+    ]
+
+    return {
+      companies: allCompanyItems,
+      es: esItems,
+      interviews: interviewItems,
+      awaiting: awaitingItems,
+      internships: internshipItems,
+      offers: offerItems,
+      deadlines: deadlineItems,
+      today: todayItems,
+    }
+  }, [companies, events, language])
+
+  const cards = useMemo<DashboardCard[]>(
+    () => [
+      { key: "companies", en: "Companies", ja: "企業", value: summary.kpis.total_companies, icon: Building2, tone: "info" as Tone, items: detailsByKey.companies },
+      { key: "es", en: "ES in review", ja: "ES確認中", value: summary.kpis.es_in_review, icon: FileText, tone: "warning" as Tone, items: detailsByKey.es },
+      { key: "interviews", en: "Interviews", ja: "面接", value: summary.kpis.interviews, icon: CalendarCheck, tone: "info" as Tone, items: detailsByKey.interviews },
+      { key: "awaiting", en: "Awaiting", ja: "応募予定", value: summary.kpis.awaiting, icon: Clock, tone: "neutral" as Tone, items: detailsByKey.awaiting },
+      { key: "internships", en: "Internships", ja: "インターン", value: summary.kpis.internships ?? 0, icon: GraduationCap, tone: "info" as Tone, items: detailsByKey.internships },
+      { key: "offers", en: "Offers", ja: "内定", value: summary.kpis.offers, icon: Trophy, tone: "success" as Tone, items: detailsByKey.offers },
+      { key: "deadlines", en: "Due <=7d", ja: "7日以内", value: summary.kpis.deadline_soon, icon: AlertTriangle, tone: "danger" as Tone, items: detailsByKey.deadlines },
+      { key: "today", en: "Today", ja: "今日", value: summary.kpis.today_tasks ?? 0, icon: ListTodo, tone: "neutral" as Tone, items: detailsByKey.today },
     ],
-    [summary],
+    [detailsByKey, summary],
   )
 
   const progressScore = useMemo(() => getProgressScore(summary), [summary])
@@ -502,6 +672,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   const totalCount = summary.kpis.total_companies
   const clearRate = totalCount > 0 ? Math.min(100, Math.round((clearedCount / totalCount) * 100)) : 0
   const hudRingStyle = { "--cyber-clear": `${clearRate}%` } as CSSProperties
+  const activeCard = cards.find((card) => card.key === activeDetail)
 
   return (
     <div className="space-y-6">
@@ -626,9 +797,14 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
           const Icon = card.icon
 
           return (
-            <div
-              key={card.en}
-              className="rounded-2xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => setActiveDetail((current) => (current === card.key ? null : card.key))}
+              className={`rounded-2xl border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                activeDetail === card.key ? "border-accent shadow-sm" : "border-border"
+              }`}
+              aria-expanded={activeDetail === card.key}
             >
               <div className="flex items-start justify-between">
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${toneBg[card.tone]}`}>
@@ -642,10 +818,55 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
               {secondaryText(language, card) && (
                 <p className="text-xs text-muted-foreground">{secondaryText(language, card)}</p>
               )}
-            </div>
+            </button>
           )
         })}
       </div>
+
+      {activeCard && (
+        <div className="rounded-2xl border border-accent/30 bg-card">
+          <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                {text(language, activeCard)}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {text(language, { en: "Registered items behind this number", ja: "この数字に含まれる登録済みデータ" })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveDetail(null)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close details"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {activeCard.items.length === 0 ? (
+            <div className="px-5 py-8 text-sm text-muted-foreground">
+              {text(language, { en: "No registered items in this category yet.", ja: "このカテゴリの登録データはまだありません。" })}
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {activeCard.items.map((item) => (
+                <div key={item.id} className="flex flex-col gap-2 px-5 py-3 text-sm sm:flex-row sm:items-center sm:gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-foreground">{item.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">{item.meta}</p>
+                  </div>
+                  {item.date && (
+                    <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                      {formatLocalizedDate(item.date, language)}
+                    </span>
+                  )}
+                  <StatusBadge tone={item.tone}>{item.badge ?? text(language, { en: "Item", ja: "項目" })}</StatusBadge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
