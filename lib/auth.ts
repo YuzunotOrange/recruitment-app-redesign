@@ -4,12 +4,14 @@ import {
   getStoredAccessToken,
   setStoredAccessToken,
 } from "@/lib/api"
+import { applyThemePreference, setThemePreference, type ThemeMode } from "@/lib/theme"
 
 export interface User {
   id: number
   email: string
   name: string
   graduation_year: number | null
+  theme?: ThemeMode
   created_at: string
   updated_at: string
 }
@@ -43,6 +45,7 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse> 
     body: JSON.stringify(payload),
   })
   setStoredAccessToken(response.access_token)
+  if (response.user.theme) setThemePreference(response.user.theme)
   return response
 }
 
@@ -52,6 +55,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
     body: JSON.stringify(payload),
   })
   setStoredAccessToken(response.access_token)
+  if (response.user.theme) setThemePreference(response.user.theme)
   return response
 }
 
@@ -60,7 +64,18 @@ export function logout() {
 }
 
 export async function getCurrentUser(): Promise<User> {
-  return apiRequest<User>("/auth/me")
+  const user = await apiRequest<User>("/auth/me")
+  if (user.theme) applyThemePreference(user.theme)
+  return user
+}
+
+export async function updateUserTheme(theme: ThemeMode): Promise<User> {
+  const user = await apiRequest<User>("/auth/me/theme", {
+    method: "PATCH",
+    body: JSON.stringify({ theme }),
+  })
+  if (user.theme) setThemePreference(user.theme)
+  return user
 }
 
 export async function changePassword(payload: ChangePasswordPayload): Promise<{ message: string }> {

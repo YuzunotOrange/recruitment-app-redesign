@@ -312,6 +312,10 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
 
   return (
     <div className="space-y-6">
+      <div className="cyber-hero" aria-hidden="true">
+        BECOME A <span className="cyber-glitch" data-text="LEGEND">LEGEND</span> IN NIGHT CITY.
+      </div>
+
       {loading && (
         <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           {text(language, copy.loadingDashboard)}
@@ -337,7 +341,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${toneBg[card.tone]}`}>
                   <Icon className={`h-[18px] w-[18px] ${toneText[card.tone]}`} />
                 </div>
-                <span className={`text-2xl font-semibold tabular-nums ${toneText[card.tone]}`}>{card.value}</span>
+                <span className={`cyber-flicker text-2xl font-semibold tabular-nums ${toneText[card.tone]}`}>{card.value}</span>
               </div>
               <p className="mt-3 text-sm font-medium text-card-foreground">
                 {text(language, card)}

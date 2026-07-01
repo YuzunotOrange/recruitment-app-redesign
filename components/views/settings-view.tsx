@@ -6,9 +6,10 @@ import { Bell, Globe, Info, LogOut, Palette, User } from "lucide-react"
 import { PasswordChangeForm } from "@/components/password-change-form"
 import { Button } from "@/components/ui/button"
 import { apiRequest } from "@/lib/api"
-import { getCurrentUser, logout, type User as AuthUser } from "@/lib/auth"
+import { getCurrentUser, logout, updateUserTheme, type User as AuthUser } from "@/lib/auth"
 import { copy, secondaryText, setLanguagePreference, text, useLanguagePreference, type LanguageMode } from "@/lib/language"
 import { requestNotificationRefresh } from "@/lib/notification-events"
+import { setThemePreference, useThemePreference, type ThemeMode } from "@/lib/theme"
 
 function Toggle({
   checked,
@@ -106,6 +107,7 @@ const defaultReminderSettings: ReminderSettings = {
 
 export function SettingsView() {
   const router = useRouter()
+  const theme = useThemePreference()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [reminderSettings, setReminderSettings] = useState<ReminderSettings>(defaultReminderSettings)
   const [loading, setLoading] = useState(true)
@@ -169,6 +171,18 @@ export function SettingsView() {
       setSettingsError(err instanceof Error ? err.message : "Failed to save notification settings.")
     } finally {
       setSettingsSaving(false)
+    }
+  }
+
+  const updateTheme = async (nextTheme: ThemeMode) => {
+    const previous = theme
+    setThemePreference(nextTheme)
+
+    try {
+      await updateUserTheme(nextTheme)
+    } catch (err) {
+      setThemePreference(previous)
+      setSettingsError(err instanceof Error ? err.message : "Failed to save theme.")
     }
   }
 
@@ -249,9 +263,14 @@ export function SettingsView() {
 
       <Section icon={Palette} title={text(language, copy.appearance)} subtitle={secondaryText(language, copy.appearance)}>
         <Row {...label(copy.theme)}>
-          <select className={inputCls}>
-            <option>Navy (Light)</option>
-            <option>System</option>
+          <select
+            value={theme}
+            onChange={(event) => updateTheme(event.target.value as ThemeMode)}
+            className={inputCls}
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="cyberpunk">Cyberpunk</option>
           </select>
         </Row>
         <Row {...label(copy.highlightDeadlines)}>

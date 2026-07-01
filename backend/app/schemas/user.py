@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+ThemeMode = Literal["light", "dark", "cyberpunk"]
 
 
 class UserRead(BaseModel):
@@ -8,6 +11,7 @@ class UserRead(BaseModel):
     email: EmailStr
     name: str
     graduation_year: int | None = None
+    theme: ThemeMode = "light"
     created_at: datetime
     updated_at: datetime
 
@@ -19,3 +23,7 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     name: str = Field(min_length=1, max_length=120)
     graduation_year: int | None = Field(default=None, ge=1900, le=2100)
+
+
+class UserThemeUpdate(BaseModel):
+    theme: ThemeMode

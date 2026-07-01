@@ -103,6 +103,82 @@
   --sidebar-ring: oklch(0.6 0.13 248);
 }
 
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: oklch(0.16 0.025 258);
+  --foreground: oklch(0.96 0.01 250);
+  --card: oklch(0.21 0.03 258);
+  --card-foreground: oklch(0.96 0.01 250);
+  --popover: oklch(0.21 0.03 258);
+  --popover-foreground: oklch(0.96 0.01 250);
+  --primary: oklch(0.66 0.13 248);
+  --primary-foreground: oklch(0.14 0.025 258);
+  --secondary: oklch(0.25 0.035 258);
+  --secondary-foreground: oklch(0.94 0.012 250);
+  --muted: oklch(0.25 0.025 258);
+  --muted-foreground: oklch(0.72 0.02 250);
+  --accent: oklch(0.7 0.13 248);
+  --accent-foreground: oklch(0.14 0.025 258);
+  --border: oklch(0.31 0.035 258);
+  --input: oklch(0.31 0.035 258);
+  --ring: oklch(0.7 0.13 248);
+  --sidebar: oklch(0.12 0.03 258);
+  --sidebar-foreground: oklch(0.88 0.02 250);
+  --sidebar-primary: oklch(0.62 0.15 248);
+  --sidebar-primary-foreground: oklch(0.99 0.005 250);
+  --sidebar-accent: oklch(0.22 0.04 258);
+  --sidebar-accent-foreground: oklch(0.98 0.005 250);
+  --sidebar-border: oklch(0.28 0.04 258);
+  --sidebar-ring: oklch(0.7 0.13 248);
+}
+
+[data-theme="cyberpunk"] {
+  color-scheme: dark;
+  --background: #05010a;
+  --foreground: #f8f7ff;
+  --card: rgba(15, 8, 28, 0.78);
+  --card-foreground: #f8f7ff;
+  --popover: rgba(12, 6, 26, 0.94);
+  --popover-foreground: #f8f7ff;
+  --primary: #ff2bd6;
+  --primary-foreground: #07010d;
+  --secondary: rgba(0, 234, 255, 0.12);
+  --secondary-foreground: #e9fcff;
+  --muted: rgba(168, 85, 247, 0.16);
+  --muted-foreground: #b8b0cf;
+  --accent: #00eaff;
+  --accent-foreground: #05010a;
+  --destructive: #ff3b81;
+  --success: #00f5a0;
+  --success-foreground: #02110b;
+  --warning: #ffd84d;
+  --warning-foreground: #201400;
+  --border: rgba(0, 234, 255, 0.24);
+  --input: rgba(0, 234, 255, 0.22);
+  --ring: #00eaff;
+  --chart-1: #ff2bd6;
+  --chart-2: #00eaff;
+  --chart-3: #a855f7;
+  --chart-4: #00f5a0;
+  --chart-5: #ffd84d;
+  --sidebar: rgba(6, 8, 24, 0.96);
+  --sidebar-foreground: #e3dcff;
+  --sidebar-primary: #00eaff;
+  --sidebar-primary-foreground: #05010a;
+  --sidebar-accent: rgba(255, 43, 214, 0.18);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(0, 234, 255, 0.24);
+  --sidebar-ring: #ff2bd6;
+  --cyber-magenta: #ff2bd6;
+  --cyber-cyan: #00eaff;
+  --cyber-purple: #a855f7;
+  --cyber-yellow: #ffd84d;
+  --cyber-card: rgba(12, 8, 28, 0.82);
+  --cyber-border: rgba(0, 234, 255, 0.36);
+  --cyber-cyan-glow: rgba(0, 234, 255, 0.5);
+  --cyber-magenta-glow: rgba(255, 43, 214, 0.48);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -112,5 +188,233 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+[data-theme="cyberpunk"] body {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(255, 43, 214, 0.18), transparent 28rem),
+    radial-gradient(circle at 84% 18%, rgba(0, 234, 255, 0.16), transparent 24rem),
+    radial-gradient(circle at 50% 92%, rgba(168, 85, 247, 0.18), transparent 30rem),
+    var(--background);
+}
+
+[data-theme="cyberpunk"] body::before,
+[data-theme="cyberpunk"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+[data-theme="cyberpunk"] body::before {
+  background-image:
+    linear-gradient(rgba(0, 234, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 43, 214, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent 82%);
+}
+
+[data-theme="cyberpunk"] body::after {
+  opacity: 0.26;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at center, transparent, rgba(0, 0, 0, 0.3));
+  mix-blend-mode: screen;
+}
+
+[data-theme="cyberpunk"] body > * {
+  position: relative;
+  z-index: 1;
+}
+
+[data-theme="cyberpunk"] .bg-card {
+  background-color: var(--cyber-card);
+}
+
+[data-theme="cyberpunk"] main .rounded-2xl.border,
+[data-theme="cyberpunk"] main .rounded-xl.border,
+[data-theme="cyberpunk"] [role="dialog"].rounded-2xl,
+[data-theme="cyberpunk"] .fixed .rounded-2xl.border {
+  position: relative;
+  border-color: var(--cyber-border);
+  box-shadow:
+    0 0 0 1px rgba(0, 234, 255, 0.12),
+    0 0 22px rgba(255, 43, 214, 0.14),
+    inset 0 0 28px rgba(0, 234, 255, 0.06);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+[data-theme="cyberpunk"] main .rounded-2xl.border:hover,
+[data-theme="cyberpunk"] main .rounded-xl.border:hover {
+  transform: translateX(2px);
+  border-color: rgba(0, 234, 255, 0.68);
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.22),
+    0 0 30px rgba(0, 234, 255, 0.24),
+    inset 0 0 28px rgba(255, 43, 214, 0.08);
+}
+
+[data-theme="cyberpunk"] main .rounded-2xl.border::before,
+[data-theme="cyberpunk"] main .rounded-2xl.border::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+[data-theme="cyberpunk"] main .rounded-2xl.border::before {
+  top: 8px;
+  left: 8px;
+  border-top: 1px solid var(--cyber-cyan);
+  border-left: 1px solid var(--cyber-cyan);
+  box-shadow: -3px -3px 10px rgba(0, 234, 255, 0.24);
+}
+
+[data-theme="cyberpunk"] main .rounded-2xl.border::after {
+  right: 8px;
+  bottom: 8px;
+  border-right: 1px solid var(--cyber-magenta);
+  border-bottom: 1px solid var(--cyber-magenta);
+  box-shadow: 3px 3px 10px rgba(255, 43, 214, 0.24);
+}
+
+.cyber-hero {
+  display: none;
+}
+
+[data-theme="cyberpunk"] .cyber-hero {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--cyber-yellow);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: clamp(1.25rem, 3.8vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  text-shadow:
+    0 0 8px rgba(255, 216, 77, 0.62),
+    0 0 20px rgba(255, 43, 214, 0.38);
+}
+
+[data-theme="cyberpunk"] .cyber-glitch {
+  position: relative;
+  display: inline-block;
+  color: #ffffff;
+  animation: cyber-glitch 4.8s infinite steps(1, end);
+  text-shadow:
+    0 0 8px var(--cyber-cyan),
+    0 0 16px var(--cyber-magenta);
+}
+
+[data-theme="cyberpunk"] .cyber-glitch::before,
+[data-theme="cyberpunk"] .cyber-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+[data-theme="cyberpunk"] .cyber-glitch::before {
+  color: var(--cyber-cyan);
+  clip-path: inset(0 0 55% 0);
+  transform: translate(-2px, 0);
+  animation: cyber-glitch-layer 4.8s infinite steps(1, end);
+}
+
+[data-theme="cyberpunk"] .cyber-glitch::after {
+  color: var(--cyber-magenta);
+  clip-path: inset(48% 0 0 0);
+  transform: translate(2px, 0);
+  animation: cyber-glitch-layer 4.8s infinite steps(1, end) reverse;
+}
+
+[data-theme="cyberpunk"] .cyber-logo-ring {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  background: rgba(5, 1, 10, 0.9);
+  box-shadow: 0 0 18px rgba(0, 234, 255, 0.35);
+}
+
+[data-theme="cyberpunk"] .cyber-logo-ring::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    var(--cyber-cyan),
+    var(--cyber-magenta),
+    var(--cyber-yellow),
+    var(--cyber-purple),
+    var(--cyber-cyan)
+  );
+  animation: cyber-spin 8s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(0, 234, 255, 0.75));
+}
+
+[data-theme="cyberpunk"] .cyber-flicker {
+  animation: cyber-flicker 5.5s infinite;
+}
+
+@keyframes cyber-glitch {
+  0%, 92%, 100% {
+    transform: translate(0);
+  }
+  94% {
+    transform: translate(2px, -1px);
+    text-shadow: -2px 0 var(--cyber-cyan), 2px 0 var(--cyber-magenta);
+  }
+  96% {
+    transform: translate(-2px, 1px);
+    text-shadow: 2px 0 var(--cyber-cyan), -2px 0 var(--cyber-magenta);
+  }
+}
+
+@keyframes cyber-glitch-layer {
+  0%, 91%, 100% {
+    opacity: 0;
+  }
+  94%, 96% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes cyber-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cyber-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  94% { opacity: 0.76; }
+  96% { opacity: 1; }
+  98% { opacity: 0.86; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="cyberpunk"] .cyber-glitch,
+  [data-theme="cyberpunk"] .cyber-glitch::before,
+  [data-theme="cyberpunk"] .cyber-glitch::after,
+  [data-theme="cyberpunk"] .cyber-logo-ring::before,
+  [data-theme="cyberpunk"] .cyber-flicker {
+    animation: none;
+  }
+
+  [data-theme="cyberpunk"] main .rounded-2xl.border:hover,
+  [data-theme="cyberpunk"] main .rounded-xl.border:hover {
+    transform: none;
   }
 }

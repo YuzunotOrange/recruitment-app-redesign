@@ -57,12 +57,51 @@ def test_me_with_valid_token(client: TestClient, auth_headers: dict[str, str]):
 
     assert response.status_code == 200
     assert response.json()["email"] == "user@example.com"
+    assert response.json()["theme"] == "light"
 
 
 def test_me_without_token_rejected(client: TestClient):
     response = client.get("/auth/me")
 
     assert response.status_code == 401
+
+
+def test_update_theme_success(client: TestClient, auth_headers: dict[str, str]):
+    response = client.patch("/auth/me/theme", headers=auth_headers, json={"theme": "cyberpunk"})
+
+    assert response.status_code == 200
+    assert response.json()["theme"] == "cyberpunk"
+
+    me_response = client.get("/auth/me", headers=auth_headers)
+    assert me_response.status_code == 200
+    assert me_response.json()["theme"] == "cyberpunk"
+
+
+def test_update_theme_rejects_invalid_value(client: TestClient, auth_headers: dict[str, str]):
+    response = client.patch("/auth/me/theme", headers=auth_headers, json={"theme": "neon"})
+
+    assert response.status_code == 422
+
+
+def test_update_theme_without_token_rejected(client: TestClient):
+    response = client.patch("/auth/me/theme", json={"theme": "dark"})
+
+    assert response.status_code == 401
+
+
+def test_update_theme_is_user_scoped(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    second_user_headers: dict[str, str],
+):
+    response = client.patch("/auth/me/theme", headers=auth_headers, json={"theme": "cyberpunk"})
+    assert response.status_code == 200
+
+    first_me = client.get("/auth/me", headers=auth_headers)
+    second_me = client.get("/auth/me", headers=second_user_headers)
+
+    assert first_me.json()["theme"] == "cyberpunk"
+    assert second_me.json()["theme"] == "light"
 
 
 def test_change_password_success_old_password_rejected_and_new_password_works(client: TestClient):

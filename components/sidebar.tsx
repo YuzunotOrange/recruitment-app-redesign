@@ -29,7 +29,7 @@ export function Sidebar({ active, onChange }: { active: ViewKey; onChange: (v: V
   return (
     <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
+        <div className="cyber-logo-ring flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
           <GraduationCap className="h-5 w-5" />
         </div>
         <div className="leading-tight">

@@ -29,7 +29,27 @@ def init_db() -> None:
     from app.models import company, event, notification, user  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_user_columns()
     ensure_reminder_settings_columns()
+
+
+def ensure_user_columns() -> None:
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    if "theme" in existing_columns:
+        return
+
+    dialect = engine.dialect.name
+    with engine.begin() as connection:
+        if dialect == "postgresql":
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(20) NOT NULL DEFAULT 'light'")
+            )
+        else:
+            connection.execute(text("ALTER TABLE users ADD COLUMN theme VARCHAR(20) NOT NULL DEFAULT 'light'"))
 
 
 def ensure_reminder_settings_columns() -> None:

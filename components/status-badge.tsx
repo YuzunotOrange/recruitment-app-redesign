@@ -22,7 +22,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset whitespace-nowrap",
+        "cyber-flicker inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset whitespace-nowrap",
         toneStyles[tone],
         className,
       )}
@@ -42,7 +42,7 @@ export function PriorityBadge({ priority }: { priority: "S" | "A" | "B" | "C" })
   return (
     <span
       className={cn(
-        "inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold ring-1 ring-inset",
+        "cyber-flicker inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold ring-1 ring-inset",
         toneStyles[tone[priority]],
       )}
     >

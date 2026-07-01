@@ -7,7 +7,7 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.auth import ChangePasswordRequest, LoginRequest, MessageResponse, TokenResponse
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserThemeUpdate
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -45,6 +45,19 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 
 @router.get("/me", response_model=UserRead)
 def me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
+@router.patch("/me/theme", response_model=UserRead)
+def update_theme(
+    payload: UserThemeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    current_user.theme = payload.theme
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
     return current_user
 
 
