@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -142,7 +142,8 @@ def test_company_create_update_generates_deadline_and_offer_notifications(
     client: TestClient,
     auth_headers: dict[str, str],
 ):
-    deadline_date = datetime.now(UTC).date() + timedelta(days=14)
+    today = datetime.now(JST).date()
+    deadline_date = today + timedelta(days=14)
     created = client.post(
         "/companies",
         headers=auth_headers,
@@ -161,37 +162,32 @@ def test_company_create_update_generates_deadline_and_offer_notifications(
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
-    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
-    assert len(deadline_notifications) == 3
-    assert {item["related_type"] for item in deadline_notifications} == {"company"}
-    assert {item["related_id"] for item in deadline_notifications} == {company_id}
-    assert {item["title"] for item in deadline_notifications} == {"ES Deadline"}
-    assert [item["message"] for item in deadline_notifications] == [
-        "ES deadline for Notify Corp is in 7 days.",
-        "ES deadline for Notify Corp is in 3 days.",
-        "ES deadline for Notify Corp is tomorrow.",
-    ]
-    assert [item["scheduled_at"][:10] for item in deadline_notifications] == [
-        (deadline_date - timedelta(days=7)).isoformat(),
-        (deadline_date - timedelta(days=3)).isoformat(),
-        (deadline_date - timedelta(days=1)).isoformat(),
-    ]
+    assert [item for item in notifications.json() if item["type"] == "deadline"] == []
 
-    original_ids = [item["id"] for item in deadline_notifications]
-    new_deadline_date = deadline_date + timedelta(days=10)
-    changed = client.put(f"/companies/{company_id}", headers=auth_headers, json={"es_deadline": new_deadline_date.isoformat()})
+    changed = client.put(f"/companies/{company_id}", headers=auth_headers, json={"es_deadline": (today + timedelta(days=7)).isoformat()})
     assert changed.status_code == 200
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
-    assert len(deadline_notifications) == 3
-    assert [item["id"] for item in deadline_notifications] == original_ids
-    assert [item["scheduled_at"][:10] for item in deadline_notifications] == [
-        (new_deadline_date - timedelta(days=7)).isoformat(),
-        (new_deadline_date - timedelta(days=3)).isoformat(),
-        (new_deadline_date - timedelta(days=1)).isoformat(),
-    ]
+    assert len(deadline_notifications) == 1
+    assert deadline_notifications[0]["related_type"] == "company"
+    assert deadline_notifications[0]["related_id"] == company_id
+    assert deadline_notifications[0]["title"] == "ES Deadline"
+    assert deadline_notifications[0]["message"] == "ES deadline for Notify Corp is in 7 days."
+    assert deadline_notifications[0]["scheduled_at"][:10] == today.isoformat()
+
+    original_id = deadline_notifications[0]["id"]
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
+    assert [item["id"] for item in deadline_notifications] == [original_id]
+
+    changed = client.put(f"/companies/{company_id}", headers=auth_headers, json={"es_deadline": (today + timedelta(days=10)).isoformat()})
+    assert changed.status_code == 200
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "deadline"] == []
 
     updated = client.put(f"/companies/{company_id}", headers=auth_headers, json={"status": "offer"})
     assert updated.status_code == 200
@@ -199,7 +195,7 @@ def test_company_create_update_generates_deadline_and_offer_notifications(
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     data = notifications.json()
-    assert len([item for item in data if item["type"] == "deadline"]) == 3
+    assert [item for item in data if item["type"] == "deadline"] == []
     assert len([item for item in data if item["type"] == "offer"]) == 1
 
     deleted = client.delete(f"/companies/{company_id}", headers=auth_headers)
@@ -209,11 +205,8 @@ def test_company_create_update_generates_deadline_and_offer_notifications(
     assert notifications.json() == []
 
 
-def test_company_deadline_skips_already_past_reminder_dates(
-    client: TestClient,
-    auth_headers: dict[str, str],
-):
-    deadline_date = datetime.now(JST).date() + timedelta(days=2)
+def test_company_deadline_uses_exact_reminder_day_and_message(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(JST).date()
     created = client.post(
         "/companies",
         headers=auth_headers,
@@ -223,7 +216,50 @@ def test_company_deadline_skips_already_past_reminder_dates(
             "priority": "A",
             "importance": 4,
             "status": "planned",
-            "es_deadline": deadline_date.isoformat(),
+            "es_deadline": (today + timedelta(days=2)).isoformat(),
+            "note": None,
+        },
+    )
+    assert created.status_code == 201
+    company_id = created.json()["id"]
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "deadline"] == []
+
+    updated = client.put(f"/companies/{company_id}", headers=auth_headers, json={"es_deadline": (today + timedelta(days=1)).isoformat()})
+    assert updated.status_code == 200
+    notifications = client.get("/notifications", headers=auth_headers)
+    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
+    assert len(deadline_notifications) == 1
+    assert deadline_notifications[0]["message"] == "ES deadline for Soon Corp is tomorrow."
+
+    updated = client.put(f"/companies/{company_id}", headers=auth_headers, json={"es_deadline": today.isoformat()})
+    assert updated.status_code == 200
+    notifications = client.get("/notifications", headers=auth_headers)
+    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
+    assert len(deadline_notifications) == 1
+    assert deadline_notifications[0]["message"] == "ES deadline for Soon Corp is today."
+
+
+def test_deadline_notification_uses_jst_today_and_prevents_duplicates(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    import app.services.notifications as notification_service
+
+    monkeypatch.setattr(notification_service, "today_jst", lambda: date(2026, 7, 2))
+    created = client.post(
+        "/companies",
+        headers=auth_headers,
+        json={
+            "name": "Calendar Corp",
+            "industry": "it",
+            "priority": "A",
+            "importance": 4,
+            "status": "planned",
+            "es_deadline": "2026-07-12",
             "note": None,
         },
     )
@@ -231,10 +267,26 @@ def test_company_deadline_skips_already_past_reminder_dates(
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "deadline"] == []
+
+    monkeypatch.setattr(notification_service, "today_jst", lambda: date(2026, 7, 5))
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
     deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
     assert len(deadline_notifications) == 1
-    assert deadline_notifications[0]["message"] == "ES deadline for Soon Corp is tomorrow."
-    assert deadline_notifications[0]["scheduled_at"][:10] == (deadline_date - timedelta(days=1)).isoformat()
+    assert deadline_notifications[0]["message"] == "ES deadline for Calendar Corp is in 7 days."
+    first_id = deadline_notifications[0]["id"]
+
+    notifications = client.get("/notifications", headers=auth_headers)
+    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
+    assert [item["id"] for item in deadline_notifications] == [first_id]
+
+    monkeypatch.setattr(notification_service, "today_jst", lambda: date(2026, 7, 12))
+    notifications = client.get("/notifications", headers=auth_headers)
+    deadline_notifications = [item for item in notifications.json() if item["type"] == "deadline"]
+    assert len(deadline_notifications) == 1
+    assert deadline_notifications[0]["id"] == first_id
+    assert deadline_notifications[0]["message"] == "ES deadline for Calendar Corp is today."
 
 
 def test_es_deadline_notifications_respect_reminder_settings(
@@ -244,7 +296,8 @@ def test_es_deadline_notifications_respect_reminder_settings(
     disabled = client.put("/reminder-settings", headers=auth_headers, json={"es_deadline_enabled": False})
     assert disabled.status_code == 200
 
-    deadline_date = datetime.now(JST).date() + timedelta(days=14)
+    today = datetime.now(JST).date()
+    deadline_date = today + timedelta(days=14)
     created = client.post(
         "/companies",
         headers=auth_headers,
@@ -270,13 +323,25 @@ def test_es_deadline_notifications_respect_reminder_settings(
     updated = client.put(
         f"/companies/{company_id}",
         headers=auth_headers,
-        json={"es_deadline": (deadline_date + timedelta(days=1)).isoformat()},
+        json={"es_deadline": (today + timedelta(days=7)).isoformat()},
     )
     assert updated.status_code == 200
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
-    assert len([item for item in notifications.json() if item["type"] == "deadline"]) == 3
+    assert len([item for item in notifications.json() if item["type"] == "deadline"]) == 1
+
+    disabled_day = client.put("/reminder-settings", headers=auth_headers, json={"deadline_7days": False})
+    assert disabled_day.status_code == 200
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "deadline"] == []
+
+    enabled_day = client.put("/reminder-settings", headers=auth_headers, json={"deadline_7days": True})
+    assert enabled_day.status_code == 200
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert len([item for item in notifications.json() if item["type"] == "deadline"]) == 1
 
 
 def test_interview_notifications_respect_reminder_settings(
@@ -343,7 +408,7 @@ def test_notification_settings_are_user_scoped(
     assert first_notifications.status_code == 200
     assert second_notifications.status_code == 200
     assert [item for item in first_notifications.json() if item["type"] == "deadline"] == []
-    assert len([item for item in second_notifications.json() if item["type"] == "deadline"]) == 3
+    assert [item for item in second_notifications.json() if item["type"] == "deadline"] == []
 
 
 def test_notifications_response_filters_disabled_types(

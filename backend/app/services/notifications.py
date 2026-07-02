@@ -20,6 +20,14 @@ def _at_local_time(day: date, hour: int = 9, minute: int = 0) -> datetime:
     return datetime.combine(day, time(hour=hour, minute=minute), tzinfo=JST)
 
 
+def today_jst() -> date:
+    return datetime.now(JST).date()
+
+
+def days_until_jst(target: date, today: date | None = None) -> int:
+    return (target - (today or today_jst())).days
+
+
 def _event_start_at(event: Event) -> datetime:
     return datetime.combine(event.start_date, event.start_time or time(hour=9), tzinfo=JST)
 
@@ -33,8 +41,15 @@ def _to_jst(value: datetime) -> datetime:
 def is_current_or_future_notification(value: datetime | None, today: date | None = None) -> bool:
     if value is None:
         return True
-    baseline = today or datetime.now(JST).date()
+    baseline = today or today_jst()
     return _to_jst(value).date() >= baseline
+
+
+def is_due_notification(value: datetime | None, now: datetime | None = None) -> bool:
+    if value is None:
+        return True
+    baseline = now or datetime.now(JST)
+    return _to_jst(value) <= baseline
 
 
 def get_or_create_reminder_settings(db: Session, user_id: int) -> ReminderSettings:
@@ -63,10 +78,23 @@ def notification_allowed_by_settings(notification_type: str, settings: ReminderS
     return True
 
 
-def _deadline_message(company_name: str, days_before: int) -> str:
-    if days_before == 1:
+def _enabled_deadline_days(settings: ReminderSettings) -> set[int]:
+    days: set[int] = set()
+    if settings.deadline_7days:
+        days.add(7)
+    if settings.deadline_3days:
+        days.add(3)
+    if settings.deadline_1day:
+        days.add(1)
+    return days
+
+
+def _deadline_message(company_name: str, days_until: int) -> str:
+    if days_until == 0:
+        return f"ES deadline for {company_name} is today."
+    if days_until == 1:
         return f"ES deadline for {company_name} is tomorrow."
-    return f"ES deadline for {company_name} is in {days_before} days."
+    return f"ES deadline for {company_name} is in {days_until} days."
 
 
 def _sync_related_notifications(
@@ -118,21 +146,20 @@ def _sync_related_notifications(
 
 def sync_company_notifications(company: Company, db: Session) -> None:
     specs: list[NotificationSpec] = []
-    today = datetime.now(JST).date()
+    today = today_jst()
     settings = get_or_create_reminder_settings(db, company.user_id)
 
     if company.es_deadline and settings.es_deadline_enabled:
-        for days_before in (7, 3, 1):
-            scheduled_day = company.es_deadline - timedelta(days=days_before)
-            scheduled_at = _at_local_time(scheduled_day)
-            if not is_current_or_future_notification(scheduled_at, today):
-                continue
+        days_until = days_until_jst(company.es_deadline, today)
+        enabled_days = _enabled_deadline_days(settings)
+        should_notify = days_until == 0 or days_until in enabled_days
+        if should_notify and days_until >= 0:
             specs.append(
                 {
                     "title": "ES Deadline",
-                    "message": _deadline_message(company.name, days_before),
+                    "message": _deadline_message(company.name, days_until),
                     "type": "deadline",
-                    "scheduled_at": scheduled_at,
+                    "scheduled_at": _at_local_time(today),
                 }
             )
 
@@ -159,7 +186,7 @@ def sync_company_notifications(company: Company, db: Session) -> None:
 def sync_event_notifications(event: Event, db: Session) -> None:
     start_at = _event_start_at(event)
     specs: list[NotificationSpec] = []
-    today = datetime.now(JST).date()
+    today = today_jst()
     settings = get_or_create_reminder_settings(db, event.user_id)
 
     if event.type == "interview" and settings.interview_enabled:

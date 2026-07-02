@@ -4,12 +4,16 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
+from app.models.company import Company
+from app.models.event import Event
 from app.models.notification import Notification, ReminderSettings
 from app.models.user import User
 from app.services.notifications import (
     get_or_create_reminder_settings,
     is_current_or_future_notification,
     notification_allowed_by_settings,
+    sync_company_notifications,
+    sync_event_notifications,
 )
 from app.schemas.notification import (
     NotificationRead,
@@ -20,6 +24,16 @@ from app.schemas.notification import (
 
 
 router = APIRouter(tags=["notifications"])
+
+
+def sync_user_notifications(user_id: int, db: Session) -> None:
+    companies = list(db.scalars(select(Company).where(Company.user_id == user_id)).all())
+    events = list(db.scalars(select(Event).where(Event.user_id == user_id)).all())
+    for company in companies:
+        sync_company_notifications(company, db)
+    for event in events:
+        sync_event_notifications(event, db)
+    db.commit()
 
 
 def get_owned_notification(notification_id: int, user_id: int, db: Session) -> Notification:
@@ -36,6 +50,7 @@ def list_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Notification]:
+    sync_user_notifications(current_user.id, db)
     stmt = (
         select(Notification)
         .where(Notification.user_id == current_user.id)
