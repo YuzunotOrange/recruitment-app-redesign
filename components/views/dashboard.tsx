@@ -873,10 +873,17 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     [companies, events, progressScore, summary],
   )
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
-  const failedCount = (summary.company_status_counts.es_rejected ?? 0) + (summary.company_status_counts.spi_rejected ?? 0)
-  const clearedCount = summary.kpis.interviews + summary.kpis.offers
-  const totalCount = summary.kpis.total_companies
-  const clearRate = totalCount > 0 ? Math.min(100, Math.round((clearedCount / totalCount) * 100)) : 0
+  const statusCounts = summary.company_status_counts
+  const failedCount = (statusCounts.es_rejected ?? 0) + (statusCounts.spi_rejected ?? 0)
+  const pendingCount = (statusCounts.planned ?? 0) + events.filter((event) => daysUntil(event.end_date) >= 0).length
+  const clearedCount =
+    (statusCounts.es_submitted ?? 0) +
+    (statusCounts.interview ?? 0) +
+    (statusCounts.offer ?? 0) +
+    (statusCounts.declined ?? 0)
+  const totalCount = summary.kpis.total_companies + events.length
+  const actionableCount = Math.max(totalCount - failedCount, 0)
+  const clearRate = actionableCount > 0 ? Math.min(100, Math.round((clearedCount / actionableCount) * 100)) : 0
   const hudRingStyle = { "--cyber-clear": `${clearRate}%` } as CSSProperties
   const activeCard = cards.find((card) => card.key === activeDetail)
 
@@ -911,7 +918,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
               <small>GIGS</small>
             </div>
             <div>
-              <span className="cyber-flicker">{summary.kpis.awaiting}</span>
+              <span className="cyber-flicker">{pendingCount}</span>
               <small>PENDING</small>
             </div>
             <div>
