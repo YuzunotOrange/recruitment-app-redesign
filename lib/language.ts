@@ -65,7 +65,7 @@ export const copy = {
   createOne: { en: "Create one", ja: "新規作成" },
   noAccount: { en: "Do not have an account?", ja: "アカウントをお持ちではありませんか？" },
   haveAccount: { en: "Already have an account?", ja: "すでにアカウントをお持ちですか？" },
-  passwordHint: { en: "Password must be at least 8 characters.", ja: "パスワードは8文字以上で入力してください。" },
+  passwordHint: { en: "Password must be at least 8 characters and include letters and numbers.", ja: "Password must include letters and numbers." },
   termsAgree: { en: "I agree to the Terms and Privacy Policy.", ja: "利用規約とプライバシーポリシーに同意します。" },
 } satisfies Record<string, Copy>
 

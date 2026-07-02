@@ -16,7 +16,13 @@ class Settings(BaseSettings):
     frontend_origin: str | None = None
     jwt_secret_key: str | None = None
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 14
+    auth_cookie_secure: bool | None = None
+    auth_cookie_samesite: str | None = None
+    login_max_failures: int = 5
+    login_lockout_minutes: int = 15
+    password_reset_token_expire_minutes: int = 30
     backend_cors_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -40,7 +46,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_environment_settings(self) -> "Settings":
-        if self.environment.lower() in LOCAL_ENVIRONMENTS:
+        is_local = self.environment.lower() in LOCAL_ENVIRONMENTS
+        if self.auth_cookie_secure is None:
+            self.auth_cookie_secure = not is_local
+        if self.auth_cookie_samesite is None:
+            self.auth_cookie_samesite = "lax" if is_local else "none"
+
+        if is_local:
             if self.frontend_origin and self.frontend_origin not in self.backend_cors_origins:
                 self.backend_cors_origins.append(self.frontend_origin)
             if self.jwt_secret_key:

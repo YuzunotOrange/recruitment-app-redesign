@@ -52,22 +52,14 @@ export default function SignUpPage() {
           }
         }}
       >
-        <AuthField label="Name" ja="氏名" name="name" placeholder="Yamada Taro" autoComplete="name" required />
-        <AuthField
-          label="Email"
-          ja="メールアドレス"
-          name="email"
-          type="email"
-          placeholder="you@example.com"
-          autoComplete="email"
-          required
-        />
+        <AuthField label="Name" ja="Name" name="name" placeholder="Yamada Taro" autoComplete="name" required />
+        <AuthField label="Email" ja="Email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
         <AuthField
           label="Password"
-          ja="パスワード"
+          ja="Password"
           name="password"
           type={showPw ? "text" : "password"}
-          placeholder="8 characters or more"
+          placeholder="letters and numbers"
           autoComplete="new-password"
           required
           rightSlot={

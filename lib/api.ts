@@ -1,6 +1,5 @@
 const LOCAL_API_BASE_URL = "http://127.0.0.1:8000"
 const PRODUCTION_API_BASE_URL = "https://recruitment-app-redesign.onrender.com"
-const TOKEN_KEY = "access_token"
 
 function getApiBaseUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL
@@ -29,57 +28,61 @@ type ApiValidationError = {
 }
 
 export function getStoredAccessToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem(TOKEN_KEY)
+  return null
 }
 
-export function setStoredAccessToken(token: string) {
-  if (typeof window === "undefined") return
-  localStorage.setItem(TOKEN_KEY, token)
+export function setStoredAccessToken(_token: string) {
+  clearStoredAccessToken()
 }
 
 export function clearStoredAccessToken() {
   if (typeof window === "undefined") return
-  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem("access_token")
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getStoredAccessToken()
-  const headers = new Headers(options.headers)
+async function parseErrorMessage(response: Response) {
+  let message = `Request failed with status ${response.status}`
+  try {
+    const body = await response.json()
+    if (typeof body.detail === "string") message = body.detail
+    else if (Array.isArray(body.detail)) {
+      message = body.detail
+        .map((item: ApiValidationError) => {
+          const path = Array.isArray(item.loc) ? item.loc.join(".") : "request"
+          return item.msg ? `${path}: ${item.msg}` : path
+        })
+        .join("; ")
+    }
+  } catch {
+    // Keep the default message when the response is not JSON.
+  }
+  return message
+}
 
+async function rawRequest(path: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers)
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json")
   }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`)
-  }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  return fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
+    credentials: "include",
     headers,
   })
+}
 
-  if (response.status === 401) {
-    clearStoredAccessToken()
+export async function apiRequest<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
+  let response = await rawRequest(path, options)
+
+  if (response.status === 401 && retry && path !== "/auth/login" && path !== "/auth/register" && path !== "/auth/refresh") {
+    const refreshed = await rawRequest("/auth/refresh", { method: "POST" })
+    if (refreshed.ok) response = await rawRequest(path, options)
+    else clearStoredAccessToken()
   }
 
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}`
-    try {
-      const body = await response.json()
-      if (typeof body.detail === "string") message = body.detail
-      else if (Array.isArray(body.detail)) {
-        message = body.detail
-          .map((item: ApiValidationError) => {
-            const path = Array.isArray(item.loc) ? item.loc.join(".") : "request"
-            return item.msg ? `${path}: ${item.msg}` : path
-          })
-          .join("; ")
-      }
-    } catch {
-      // Keep the default message when the response is not JSON.
-    }
-    throw new ApiError(response.status, message)
+    throw new ApiError(response.status, await parseErrorMessage(response))
   }
 
   if (response.status === 204) {

@@ -132,7 +132,7 @@ export function SettingsView() {
         }
       } catch {
         if (active) {
-          logout()
+          await logout()
           router.replace("/auth/sign-in")
         }
       } finally {
@@ -147,8 +147,8 @@ export function SettingsView() {
     }
   }, [router])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     router.replace("/auth/sign-in")
   }
 

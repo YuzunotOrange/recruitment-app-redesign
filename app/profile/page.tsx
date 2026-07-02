@@ -100,8 +100,8 @@ export default function ProfilePage() {
     router.push("/")
   }
 
-  const handleSignOut = () => {
-    signOut()
+  const handleSignOut = async () => {
+    await signOut()
     router.replace("/auth/sign-in")
   }
 

@@ -32,12 +32,12 @@ export default function SignInPage() {
     >
       <form
         className="space-y-4"
-        onSubmit={async (e) => {
-          e.preventDefault()
+        onSubmit={async (event) => {
+          event.preventDefault()
           setError(null)
           setIsSubmitting(true)
 
-          const form = new FormData(e.currentTarget)
+          const form = new FormData(event.currentTarget)
           const email = String(form.get("email") ?? "")
           const password = String(form.get("password") ?? "")
 
@@ -51,10 +51,10 @@ export default function SignInPage() {
           }
         }}
       >
-        <AuthField label="Email" ja="メールアドレス" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
+        <AuthField label="Email" ja="Email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
         <AuthField
           label="Password"
-          ja="パスワード"
+          ja="Password"
           name="password"
           type={showPw ? "text" : "password"}
           placeholder="********"
@@ -72,10 +72,7 @@ export default function SignInPage() {
           }
         />
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary" />
-            {text(language, copy.rememberMe)}
-          </label>
+          <span className="text-sm text-muted-foreground">Secure cookie session</span>
           <Link href="/auth/forgot-password" className="text-sm font-medium text-accent hover:underline">
             {text(language, copy.forgotPassword)}
           </Link>

@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { getAccessToken, getCurrentUser } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth"
 
 export function useRequireAuth() {
   const router = useRouter()
@@ -8,11 +8,6 @@ export function useRequireAuth() {
     let cancelled = false
 
     async function verifyAuth() {
-      if (!getAccessToken()) {
-        router.replace("/auth/sign-in")
-        return
-      }
-
       try {
         await getCurrentUser()
       } catch {

@@ -1,13 +1,13 @@
-import { getAccessToken, login, logout } from "@/lib/auth"
+import { login, logout } from "@/lib/auth"
 
 export function isAuthed(): boolean {
-  return Boolean(getAccessToken())
+  return true
 }
 
 export async function signIn(email: string, password: string) {
   return login({ email, password })
 }
 
-export function signOut() {
-  logout()
+export async function signOut() {
+  await logout()
 }

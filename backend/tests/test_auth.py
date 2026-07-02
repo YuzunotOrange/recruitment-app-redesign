@@ -153,3 +153,72 @@ def test_change_password_without_token_rejected(client: TestClient):
     )
 
     assert response.status_code == 401
+
+
+
+def test_login_sets_httponly_cookies_and_refresh_works(client: TestClient):
+    register_user(client, email="cookie@example.com", password="password123")
+
+    response = client.post(
+        "/auth/login",
+        json={"email": "cookie@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    set_cookie = ", ".join(response.headers.get_list("set-cookie"))
+    assert "careertrack_access_token" in set_cookie
+    assert "careertrack_refresh_token" in set_cookie
+    assert "HttpOnly" in set_cookie
+    assert "SameSite" in set_cookie
+
+    refresh = client.post("/auth/refresh")
+    assert refresh.status_code == 200
+    assert refresh.json()["access_token"]
+
+
+def test_logout_clears_auth_cookies(client: TestClient):
+    register_user(client, email="logout@example.com", password="password123")
+    login = client.post("/auth/login", json={"email": "logout@example.com", "password": "password123"})
+    assert login.status_code == 200
+
+    response = client.post("/auth/logout")
+    assert response.status_code == 200
+    set_cookie = ", ".join(response.headers.get_list("set-cookie"))
+    assert "careertrack_access_token" in set_cookie
+    assert "Max-Age=0" in set_cookie
+
+
+def test_login_failure_rate_limit(client: TestClient):
+    register_user(client, email="limit@example.com", password="password123")
+
+    for _ in range(5):
+        response = client.post("/auth/login", json={"email": "limit@example.com", "password": "wrong123"})
+        assert response.status_code == 401
+
+    locked = client.post("/auth/login", json={"email": "limit@example.com", "password": "password123"})
+    assert locked.status_code == 429
+
+
+def test_weak_password_rejected(client: TestClient):
+    response = client.post(
+        "/auth/register",
+        json={"email": "weak@example.com", "password": "password", "name": "Weak User", "graduation_year": 2027},
+    )
+    assert response.status_code == 422
+
+
+def test_password_reset_foundation(client: TestClient):
+    register_user(client, email="reset@example.com", password="password123")
+    requested = client.post("/auth/password-reset/request", json={"email": "reset@example.com"})
+    assert requested.status_code == 200
+    token = requested.json()["reset_token"]
+    assert token
+
+    confirmed = client.post(
+        "/auth/password-reset/confirm",
+        json={"token": token, "new_password": "resetpass123"},
+    )
+    assert confirmed.status_code == 200
+
+    login = client.post("/auth/login", json={"email": "reset@example.com", "password": "resetpass123"})
+    assert login.status_code == 200
