@@ -216,6 +216,10 @@ function IndustryDonut({
   )
 }
 
+function proseText(language: LanguageMode, value: { en: string; ja: string }) {
+  return language === "ja-en" ? value.ja : text(language, value)
+}
+
 function eventTimeLabel(event: ApiEvent) {
   return event.start_time ? event.start_time.slice(0, 5) : "No time"
 }
@@ -988,7 +992,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
               {text(language, { en: "Next best actions", ja: "次にやるべき行動" })}
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {text(language, { en: "Rule-based suggestions from your score, deadlines, events, and open tasks.", ja: "進捗スコア、締切、予定、未完了タスクをもとにしたルールベース提案です。" })}
+              {proseText(language, { en: "Rule-based suggestions from your score, deadlines, events, and open tasks.", ja: "進捗スコア、締切、予定、未完了タスクをもとにしたルールベース提案です。" })}
             </p>
           </div>
           <StatusBadge tone="info">
@@ -1011,13 +1015,13 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     {text(language, { en: "Reason", ja: "理由" })}
                   </p>
-                  <p className="mt-1 text-muted-foreground">{text(language, suggestion.reason)}</p>
+                  <p className="mt-1 text-muted-foreground">{proseText(language, suggestion.reason)}</p>
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     {text(language, { en: "Recommended action", ja: "推奨アクション" })}
                   </p>
-                  <p className="mt-1 text-foreground">{text(language, suggestion.action)}</p>
+                  <p className="mt-1 text-foreground">{proseText(language, suggestion.action)}</p>
                 </div>
               </div>
             </div>
