@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import Settings
+
 from tests.conftest import register_user
 
 
@@ -155,7 +157,6 @@ def test_change_password_without_token_rejected(client: TestClient):
     assert response.status_code == 401
 
 
-
 def test_login_sets_httponly_cookies_and_refresh_works(client: TestClient):
     register_user(client, email="cookie@example.com", password="password123")
 
@@ -186,6 +187,33 @@ def test_logout_clears_auth_cookies(client: TestClient):
     set_cookie = ", ".join(response.headers.get_list("set-cookie"))
     assert "careertrack_access_token" in set_cookie
     assert "Max-Age=0" in set_cookie
+
+
+def test_production_auth_cookie_and_cors_settings_are_mobile_safe():
+    settings = Settings(
+        environment="production",
+        jwt_secret_key="production-secret",
+        frontend_origin="https://recruitment-app-redesign.vercel.app",
+        backend_cors_origins="https://preview-recruitment-app-redesign.vercel.app",
+    )
+
+    assert settings.auth_cookie_secure is True
+    assert settings.auth_cookie_samesite == "none"
+    assert settings.backend_cors_origins == [
+        "https://recruitment-app-redesign.vercel.app",
+        "https://preview-recruitment-app-redesign.vercel.app",
+    ]
+
+
+def test_samesite_none_forces_secure_cookie():
+    settings = Settings(
+        environment="development",
+        auth_cookie_secure=False,
+        auth_cookie_samesite="none",
+    )
+
+    assert settings.auth_cookie_secure is True
+    assert settings.auth_cookie_samesite == "none"
 
 
 def test_login_failure_rate_limit(client: TestClient):

@@ -1,13 +1,15 @@
 const LOCAL_API_BASE_URL = "http://127.0.0.1:8000"
-const PRODUCTION_API_BASE_URL = "https://recruitment-app-redesign.onrender.com"
+const PROXY_API_BASE_URL = "/api/backend"
 
 function getApiBaseUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL
-  if (configuredUrl) return configuredUrl.replace(/\/$/, "")
+  const proxyDisabled = process.env.NEXT_PUBLIC_DISABLE_API_PROXY === "true"
 
-  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
-    return PRODUCTION_API_BASE_URL
+  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app") && !proxyDisabled) {
+    return PROXY_API_BASE_URL
   }
+
+  if (configuredUrl) return configuredUrl.replace(/\/$/, "")
 
   return LOCAL_API_BASE_URL
 }

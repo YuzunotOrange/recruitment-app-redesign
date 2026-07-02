@@ -8,6 +8,7 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
 import { signIn } from "@/lib/mock-auth"
+import { getCurrentUserWithRetry } from "@/lib/auth"
 import { copy, text, useLanguagePreference } from "@/lib/language"
 
 export default function SignInPage() {
@@ -43,7 +44,8 @@ export default function SignInPage() {
 
           try {
             await signIn(email, password)
-            router.push("/")
+            await getCurrentUserWithRetry()
+            router.replace("/")
           } catch (err) {
             setError(err instanceof Error ? err.message : "Sign in failed.")
           } finally {

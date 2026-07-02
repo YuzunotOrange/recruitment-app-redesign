@@ -71,10 +71,27 @@ export async function logout() {
   }
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function getCurrentUser(): Promise<User> {
   const user = await apiRequest<User>("/auth/me")
   if (user.theme) applyThemePreference(user.theme)
   return user
+}
+
+export async function getCurrentUserWithRetry(attempts = 3, delayMs = 350): Promise<User> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await getCurrentUser()
+    } catch (error) {
+      lastError = error
+      if (attempt < attempts - 1) await wait(delayMs)
+    }
+  }
+  throw lastError
 }
 
 export async function updateUserTheme(theme: ThemeMode): Promise<User> {

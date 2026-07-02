@@ -34,11 +34,16 @@ _login_failures: dict[str, tuple[int, datetime]] = {}
 
 
 def _cookie_secure() -> bool:
-    return bool(get_settings().auth_cookie_secure)
+    settings = get_settings()
+    samesite = (settings.auth_cookie_samesite or "").lower()
+    return True if samesite == "none" else bool(settings.auth_cookie_secure)
 
 
 def _cookie_samesite() -> str:
-    return get_settings().auth_cookie_samesite or "lax"
+    value = (get_settings().auth_cookie_samesite or "lax").lower()
+    if value not in {"lax", "strict", "none"}:
+        return "lax"
+    return value
 
 
 def _cookie_domain() -> None:
@@ -48,13 +53,14 @@ def _cookie_domain() -> None:
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     settings = get_settings()
     secure = _cookie_secure()
+    samesite = _cookie_samesite()
     response.set_cookie(
         ACCESS_COOKIE_NAME,
         access_token,
         max_age=settings.access_token_expire_minutes * 60,
         httponly=True,
         secure=secure,
-        samesite=_cookie_samesite(),
+        samesite=samesite,
         path="/",
         domain=_cookie_domain(),
     )
@@ -64,16 +70,18 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
         httponly=True,
         secure=secure,
-        samesite=_cookie_samesite(),
-        path="/auth",
+        samesite=samesite,
+        path="/",
         domain=_cookie_domain(),
     )
 
 
 def _clear_auth_cookies(response: Response) -> None:
     secure = _cookie_secure()
-    for name, path in ((ACCESS_COOKIE_NAME, "/"), (REFRESH_COOKIE_NAME, "/auth")):
-        response.delete_cookie(name, path=path, domain=_cookie_domain(), secure=secure, samesite=_cookie_samesite())
+    samesite = _cookie_samesite()
+    for name in (ACCESS_COOKIE_NAME, REFRESH_COOKIE_NAME):
+        response.delete_cookie(name, path="/", domain=_cookie_domain(), secure=secure, samesite=samesite)
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/auth", domain=_cookie_domain(), secure=secure, samesite=samesite)
 
 
 def _issue_tokens(user: User, response: Response) -> str:

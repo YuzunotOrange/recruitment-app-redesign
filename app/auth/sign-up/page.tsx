@@ -7,7 +7,7 @@ import { Eye, EyeOff } from "lucide-react"
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
-import { register } from "@/lib/auth"
+import { getCurrentUserWithRetry, register } from "@/lib/auth"
 import { copy, text, useLanguagePreference } from "@/lib/language"
 
 export default function SignUpPage() {
@@ -44,7 +44,8 @@ export default function SignUpPage() {
 
           try {
             await register({ name, email, password, graduation_year: 2027 })
-            router.push("/")
+            await getCurrentUserWithRetry()
+            router.replace("/")
           } catch (err) {
             setError(err instanceof Error ? err.message : "Sign up failed.")
           } finally {

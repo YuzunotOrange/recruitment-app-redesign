@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -23,10 +23,7 @@ class Settings(BaseSettings):
     login_max_failures: int = 5
     login_lockout_minutes: int = 15
     password_reset_token_expire_minutes: int = 30
-    backend_cors_origins: Annotated[list[str], NoDecode] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    backend_cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -51,8 +48,13 @@ class Settings(BaseSettings):
             self.auth_cookie_secure = not is_local
         if self.auth_cookie_samesite is None:
             self.auth_cookie_samesite = "lax" if is_local else "none"
+        self.auth_cookie_samesite = self.auth_cookie_samesite.lower()
+        if self.auth_cookie_samesite == "none":
+            self.auth_cookie_secure = True
 
         if is_local:
+            local_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+            self.backend_cors_origins = list(dict.fromkeys([*local_origins, *self.backend_cors_origins]))
             if self.frontend_origin and self.frontend_origin not in self.backend_cors_origins:
                 self.backend_cors_origins.append(self.frontend_origin)
             if self.jwt_secret_key:
@@ -65,7 +67,8 @@ class Settings(BaseSettings):
         if not self.frontend_origin:
             raise ValueError("FRONTEND_ORIGIN is required outside local development.")
 
-        self.backend_cors_origins = [self.frontend_origin]
+        allowed_origins = [self.frontend_origin, *self.backend_cors_origins]
+        self.backend_cors_origins = [origin for origin in dict.fromkeys(allowed_origins) if origin != "*"]
         return self
 
 

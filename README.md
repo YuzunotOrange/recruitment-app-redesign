@@ -19,6 +19,19 @@ Default:
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
+Production auth/session settings:
+
+```text
+FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
+BACKEND_CORS_ORIGINS=https://your-vercel-app.vercel.app
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAMESITE=none
+```
+
+On Vercel, the frontend uses the same-origin `/api/backend` proxy by default so iPhone/iPad browsers keep the HttpOnly session cookie as a first-party cookie. Set `BACKEND_API_BASE_URL` to the Render/FastAPI URL when it differs from the default. For local development, keep `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000`; cookies use `Secure=false` and `SameSite=Lax`.
+
+
 ## Install
 
 ```powershell
