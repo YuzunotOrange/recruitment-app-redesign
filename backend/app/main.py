@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import auth, companies, dashboard, events, notifications
+from app.routers import auth, companies, dashboard, events, notifications, tasks
 
 
 settings = get_settings()
@@ -28,3 +28,4 @@ app.include_router(companies.router)
 app.include_router(events.router)
 app.include_router(dashboard.router)
 app.include_router(notifications.router)
+app.include_router(tasks.router)

@@ -23,3 +23,4 @@ class Event(Base):
 
     user = relationship("User", back_populates="events")
     company = relationship("Company", back_populates="events")
+    tasks = relationship("Task", back_populates="related_event")

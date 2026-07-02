@@ -15,6 +15,7 @@ import {
   GraduationCap,
   ListTodo,
   ShieldCheck,
+  CheckCircle2,
   Sparkles,
   TrendingUp,
   Trophy,
@@ -45,6 +46,9 @@ type DashboardSummary = {
     deadline_soon: number
     internships?: number
     today_tasks?: number
+    incomplete_tasks?: number
+    overdue_tasks?: number
+    task_completion_rate?: number
   }
   company_status_counts: Partial<Record<CompanyStatus, number>>
   industry_counts: Partial<Record<Industry, number>>
@@ -90,6 +94,9 @@ const emptySummary: DashboardSummary = {
     deadline_soon: 0,
     internships: 0,
     today_tasks: 0,
+    incomplete_tasks: 0,
+    overdue_tasks: 0,
+    task_completion_rate: 0,
   },
   company_status_counts: {},
   industry_counts: {},
@@ -336,6 +343,8 @@ type DetailKey =
   | "offers"
   | "deadlines"
   | "today"
+  | "openTasks"
+  | "overdueTasks"
 
 type DashboardCard = {
   key: DetailKey
@@ -458,20 +467,24 @@ function getProgressScore(summary: DashboardSummary): ProgressScore {
     return Math.max(risk, 18)
   }, 0)
 
+  const incompleteTasks = summary.kpis.incomplete_tasks ?? 0
+  const overdueTasks = summary.kpis.overdue_tasks ?? 0
+  const taskCompletionRate = summary.kpis.task_completion_rate ?? 0
   const statusReadiness =
     (planned * 20 + esSubmitted * 50 + interviews * 76 + offers * 100 + declined * 82 + rejected * 18) / total
   const deadlineRisk = clamp(
-    Math.round(nearestDeadlineRisk + summary.kpis.deadline_soon * 6 + (summary.kpis.today_tasks ?? 0) * 5),
+    Math.round(nearestDeadlineRisk + summary.kpis.deadline_soon * 6 + (summary.kpis.today_tasks ?? 0) * 5 + overdueTasks * 12),
   )
   const readiness = clamp(
     Math.round(
       statusReadiness * 0.68 +
         Math.min(18, eventsThisWeek * 5) +
         Math.min(10, (summary.kpis.internships ?? 0) * 2) +
+        Math.min(12, taskCompletionRate * 0.12) -
+        Math.min(16, overdueTasks * 8) +
         (deadlineRisk <= 30 ? 8 : deadlineRisk >= 75 ? -8 : 0),
     ),
   )
-  const incompleteTasks = planned + esSubmitted + summary.kpis.deadline_soon + (summary.kpis.today_tasks ?? 0)
   const weekActions = eventsThisWeek + deadlinesThisWeek + (summary.kpis.today_tasks ?? 0) + esSubmitted
   const nextFocus =
     deadlineRisk >= 70
@@ -833,6 +846,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       offers: offerItems,
       deadlines: deadlineItems,
       today: todayItems,
+      openTasks: [],
+      overdueTasks: [],
     }
   }, [companies, events, language])
 
@@ -846,6 +861,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       { key: "offers", en: "Offers", ja: "内定", value: summary.kpis.offers, icon: Trophy, tone: "success" as Tone, items: detailsByKey.offers },
       { key: "deadlines", en: "Due <=7d", ja: "7日以内", value: summary.kpis.deadline_soon, icon: AlertTriangle, tone: "danger" as Tone, items: detailsByKey.deadlines },
       { key: "today", en: "Today", ja: "今日", value: summary.kpis.today_tasks ?? 0, icon: ListTodo, tone: "neutral" as Tone, items: detailsByKey.today },
+      { key: "openTasks", en: "Open tasks", ja: "未完了タスク", value: summary.kpis.incomplete_tasks ?? 0, icon: ListTodo, tone: "warning" as Tone, items: [] },
+      { key: "overdueTasks", en: "Overdue", ja: "期限切れ", value: summary.kpis.overdue_tasks ?? 0, icon: AlertTriangle, tone: "danger" as Tone, items: [] },
     ],
     [detailsByKey, summary],
   )
@@ -972,10 +989,27 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
           />
           <ProgressScoreCard
             label={{ en: "Open tasks", ja: "未完了タスク" }}
-            sublabel={{ en: "Planned, ES, deadlines, and today", ja: "応募予定・ES・締切・今日の残数" }}
+            sublabel={{ en: "Incomplete task records", ja: "未完了のタスク登録数" }}
             value={progressScore.incompleteTasks}
             icon={ListTodo}
             tone={progressScore.incompleteTasks > 5 ? "warning" : "neutral"}
+            language={language}
+          />
+          <ProgressScoreCard
+            label={{ en: "Task completion", ja: "タスク完了率" }}
+            sublabel={{ en: "Completed tasks / all tasks", ja: "完了タスク / 全タスク" }}
+            value={summary.kpis.task_completion_rate ?? 0}
+            suffix="%"
+            icon={CheckCircle2}
+            tone="success"
+            language={language}
+          />
+          <ProgressScoreCard
+            label={{ en: "Overdue tasks", ja: "期限切れタスク" }}
+            sublabel={{ en: "Unfinished tasks past due", ja: "期限を過ぎた未完了タスク" }}
+            value={summary.kpis.overdue_tasks ?? 0}
+            icon={AlertTriangle}
+            tone={(summary.kpis.overdue_tasks ?? 0) > 0 ? "danger" : "neutral"}
             language={language}
           />
         </div>
@@ -1037,7 +1071,13 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
             <button
               key={card.key}
               type="button"
-              onClick={() => setActiveDetail((current) => (current === card.key ? null : card.key))}
+              onClick={() => {
+                if (card.key === "openTasks" || card.key === "overdueTasks") {
+                  onNavigate("tasks")
+                  return
+                }
+                setActiveDetail((current) => (current === card.key ? null : card.key))
+              }}
               className={`rounded-2xl border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 activeDetail === card.key ? "border-accent shadow-sm" : "border-border"
               }`}

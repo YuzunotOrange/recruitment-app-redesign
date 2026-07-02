@@ -21,6 +21,7 @@ class User(Base):
     companies = relationship("Company", back_populates="user", cascade="all, delete-orphan")
     events = relationship("Event", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     reminder_settings = relationship(
         "ReminderSettings",
         back_populates="user",

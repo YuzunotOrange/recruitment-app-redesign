@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.company import Company
 from app.models.event import Event
+from app.models.task import Task
 from app.models.user import User
 from app.schemas.dashboard import (
     DashboardKpis,
@@ -66,6 +67,16 @@ def dashboard_summary(
     internship_events = sum(1 for event in event_rows if event.type == "intern")
     today_events = sum(1 for event in event_rows if event.start_date <= today <= event.end_date)
     today_company_deadlines = sum(1 for company in companies if company.es_deadline == today)
+    task_rows = list(db.scalars(select(Task).where(Task.user_id == current_user.id)).all())
+    incomplete_tasks = sum(1 for task in task_rows if task.status != "completed")
+    overdue_tasks = sum(
+        1
+        for task in task_rows
+        if task.status != "completed" and task.due_date is not None and task.due_date < today
+    )
+    today_task_rows = sum(1 for task in task_rows if task.status != "completed" and task.due_date == today)
+    completed_tasks = sum(1 for task in task_rows if task.status == "completed")
+    task_completion_rate = round((completed_tasks / len(task_rows)) * 100) if task_rows else 0
 
     kpis = DashboardKpis(
         total_companies=len(companies),
@@ -75,7 +86,10 @@ def dashboard_summary(
         offers=status_counts.get("offer", 0),
         deadline_soon=company_deadline_soon + event_deadline_soon,
         internships=internship_events,
-        today_tasks=today_events + today_company_deadlines,
+        today_tasks=today_events + today_company_deadlines + today_task_rows,
+        incomplete_tasks=incomplete_tasks,
+        overdue_tasks=overdue_tasks,
+        task_completion_rate=task_completion_rate,
     )
 
     upcoming_events = [

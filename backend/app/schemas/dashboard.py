@@ -10,6 +10,9 @@ class DashboardKpis(BaseModel):
     deadline_soon: int
     internships: int = 0
     today_tasks: int = 0
+    incomplete_tasks: int = 0
+    overdue_tasks: int = 0
+    task_completion_rate: int = 0
 
 
 class DashboardUpcomingEvent(BaseModel):
