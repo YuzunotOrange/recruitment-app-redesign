@@ -36,7 +36,7 @@ export default function Page() {
       <Sidebar active={view} onChange={setView} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-5 py-4 backdrop-blur md:px-8">
+        <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:static md:px-8 md:py-4">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{text(language, titles[view])}</h1>
             {secondaryTitle && <p className="text-xs text-muted-foreground">{secondaryTitle}</p>}
@@ -45,10 +45,8 @@ export default function Page() {
         </header>
         <CyberTicker />
 
-        <MobileNav active={view} onChange={setView} />
-
         <div className="flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1 overflow-y-auto px-5 py-6 md:px-8">
+          <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-28 pt-4 md:px-8 md:py-6">
             {view === "dashboard" && <Dashboard onNavigate={setView} />}
             {view === "companies" && <CompaniesView />}
             {view === "events" && <EventsView />}
@@ -59,6 +57,7 @@ export default function Page() {
           </main>
           <RightPanel />
         </div>
+        <MobileNav active={view} onChange={setView} />
       </div>
     </div>
   )

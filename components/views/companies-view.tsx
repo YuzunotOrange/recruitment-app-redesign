@@ -244,7 +244,7 @@ export function CompaniesView() {
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 tab === item.key
                   ? "bg-primary text-primary-foreground"
                   : "bg-card text-muted-foreground ring-1 ring-border hover:text-foreground"
@@ -259,7 +259,7 @@ export function CompaniesView() {
           type="button"
           onClick={clearFilters}
           disabled={!hasFilters}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-card px-3 py-1.5 text-sm text-muted-foreground ring-1 ring-border hover:text-foreground disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-card px-3 py-2.5 text-sm text-muted-foreground ring-1 ring-border hover:text-foreground disabled:opacity-50"
         >
           <Filter className="h-4 w-4" />
           {text(language, { en: "Clear filters", ja: "条件をクリア" })}
@@ -279,7 +279,7 @@ export function CompaniesView() {
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as CompanyStatus | "all")}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">{text(language, { en: "All statuses", ja: "すべてのステータス" })}</option>
           {statuses.map((status) => (
@@ -291,7 +291,7 @@ export function CompaniesView() {
         <select
           value={priorityFilter}
           onChange={(event) => setPriorityFilter(event.target.value as Priority | "all")}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">{text(language, { en: "All priorities", ja: "すべての優先度" })}</option>
           {priorities.map((priority) => (
@@ -309,12 +309,12 @@ export function CompaniesView() {
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
             required
             placeholder={text(language, { en: "Company", ja: "企業名" })}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
           />
           <select
             value={form.industry}
             onChange={(event) => setForm((current) => ({ ...current, industry: event.target.value as Industry }))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           >
             {industries.map((industry) => (
               <option key={industry} value={industry}>
@@ -325,7 +325,7 @@ export function CompaniesView() {
           <select
             value={form.priority}
             onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as Priority }))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           >
             {priorities.map((priority) => (
               <option key={priority} value={priority}>
@@ -339,7 +339,7 @@ export function CompaniesView() {
             type="number"
             min={1}
             max={5}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           />
           <SplitDateInput
             value={form.es_deadline}
@@ -350,7 +350,7 @@ export function CompaniesView() {
           <select
             value={form.status}
             onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CompanyStatus }))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
           >
             {statuses.map((status) => (
               <option key={status} value={status}>
@@ -362,7 +362,7 @@ export function CompaniesView() {
             value={form.note}
             onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
             placeholder={text(language, { en: "Note", ja: "メモ" })}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
           />
           <div className="flex gap-2 lg:col-span-1">
             <button
@@ -402,7 +402,22 @@ export function CompaniesView() {
               : text(language, { en: "No companies yet.", ja: "企業はまだありません。" })}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="space-y-3 p-3 md:hidden" data-mobile-company-card>
+            {companies.map((company) => {
+              const statusMeta = companyStatusMeta[company.status]
+              const dueSoon = company.es_deadline && daysUntil(company.es_deadline) >= 0 && daysUntil(company.es_deadline) <= 7
+              return (
+                <div key={company.id} className="rounded-xl border border-border bg-background/60 p-4">
+                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-base font-semibold text-foreground">{company.name}</p><p className="mt-1 text-xs text-muted-foreground">{text(language, industryMeta[company.industry])}</p></div><PriorityBadge priority={company.priority} /></div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge tone={statusMeta.tone}>{statusMeta.ja}</StatusBadge><Stars count={company.importance} /></div>
+                  <div className="mt-3 grid gap-2 text-sm"><div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">ES deadline</span>{company.es_deadline ? (<span className={dueSoon ? "cyber-blink font-medium text-destructive" : "text-foreground"}>{formatLocalizedDate(company.es_deadline, language)}</span>) : (<span className="text-muted-foreground">-</span>)}</div>{company.note && <p className="text-muted-foreground">{company.note}</p>}</div>
+                  <div className="mt-4 flex gap-2"><select value={company.status} onChange={(event) => handleStatusChange(company, event.target.value as CompanyStatus)} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">{statuses.map((status) => (<option key={status} value={status}>{companyStatusMeta[status].en}</option>))}</select><button onClick={() => handleEdit(company)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground" aria-label="Edit company"><Pencil className="h-4 w-4" /></button><button onClick={() => handleDelete(company.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive" aria-label="Delete company"><Trash2 className="h-4 w-4" /></button></div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
@@ -470,14 +485,14 @@ export function CompaniesView() {
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => handleEdit(company)}
-                            className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border hover:text-foreground"
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground"
                             aria-label="Edit company"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(company.id)}
-                            className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border hover:text-destructive"
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive"
                             aria-label="Delete company"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -490,6 +505,7 @@ export function CompaniesView() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

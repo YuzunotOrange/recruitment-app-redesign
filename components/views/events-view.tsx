@@ -213,12 +213,12 @@ function EventsTab() {
             onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
             required
             placeholder={text(language, { en: "Event", ja: "イベント" })}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
           />
           <select
             value={form.company_id}
             onChange={(event) => setForm((current) => ({ ...current, company_id: event.target.value }))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
           >
             <option value="">{text(language, { en: "No company", ja: "企業なし" })}</option>
             {companies.map((company) => (
@@ -230,7 +230,7 @@ function EventsTab() {
           <select
             value={form.type}
             onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as EventType }))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           >
             {eventTypes.map((type) => (
               <option key={type} value={type}>
@@ -242,7 +242,7 @@ function EventsTab() {
             value={form.start_time}
             onChange={(event) => setForm((current) => ({ ...current, start_time: event.target.value }))}
             type="time"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           />
           <SplitDateInput
             value={form.start_date}
@@ -270,7 +270,7 @@ function EventsTab() {
             value={form.note}
             onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
             placeholder={text(language, { en: "Note", ja: "メモ" })}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
           />
           <div className="flex gap-2 lg:col-span-1">
             <button
@@ -306,7 +306,21 @@ function EventsTab() {
         ) : sorted.length === 0 ? (
           <div className="px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "No events yet.", ja: "イベントはまだありません。" })}</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="space-y-3 p-3 md:hidden" data-mobile-event-card>
+            {sorted.map((event) => {
+              const meta = eventTypeMeta[event.type]
+              const remainingDays = daysUntil(event.start_date)
+              return (
+                <div key={event.id} className="rounded-xl border border-border bg-background/60 p-4">
+                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-base font-semibold text-foreground">{event.title}</p><p className="mt-1 text-xs text-muted-foreground">{event.company_name ?? text(language, { en: "No company", ja: "企業なし" })}</p></div><StatusBadge tone={meta.tone}>{meta.ja}</StatusBadge></div>
+                  <div className="mt-3 grid gap-2 text-sm"><div className="flex justify-between gap-3"><span className="text-muted-foreground">Start</span><span>{formatLocalizedDate(event.start_date, language)}</span></div><div className="flex justify-between gap-3"><span className="text-muted-foreground">End</span><span>{formatLocalizedDate(event.end_date, language)}</span></div><div className="flex justify-between gap-3"><span className="text-muted-foreground">Time</span><span>{event.start_time?.slice(0, 5) ?? "-"}</span></div><div className="flex justify-between gap-3"><span className="text-muted-foreground">Remaining</span><span className={remainingDays <= 7 ? "font-medium text-destructive" : "text-foreground"}>{remainingDays < 0 ? text(language, { en: "Done", ja: "完了" }) : remainingDays === 0 ? text(language, { en: "Today", ja: "今日" }) : String(remainingDays) + "d"}</span></div></div>
+                  <div className="mt-4 flex justify-end gap-2"><button onClick={() => handleEdit(event)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground" aria-label="Edit event"><Pencil className="h-4 w-4" /></button><button onClick={() => handleDelete(event.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive" aria-label="Delete event"><Trash2 className="h-4 w-4" /></button></div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
@@ -346,14 +360,14 @@ function EventsTab() {
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => handleEdit(event)}
-                            className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border hover:text-foreground"
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground"
                             aria-label="Edit event"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(event.id)}
-                            className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border hover:text-destructive"
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive"
                             aria-label="Delete event"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -366,6 +380,7 @@ function EventsTab() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
@@ -416,7 +431,16 @@ function InternTab() {
       ) : sorted.length === 0 ? (
         <div className="px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "No internships yet.", ja: "インターンはまだありません。" })}</div>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        <div className="space-y-3 p-3 md:hidden" data-mobile-intern-card>
+          {sorted.map((event) => (
+            <div key={event.id} className="rounded-xl border border-border bg-background/60 p-4">
+              <p className="text-base font-semibold text-foreground">{event.title}</p><p className="mt-1 text-sm text-muted-foreground">{event.company_name ?? text(language, { en: "No company", ja: "企業なし" })}</p>
+              <div className="mt-3 grid gap-2 text-sm"><div className="flex justify-between gap-3"><span className="text-muted-foreground">Schedule</span><span className="text-right">{formatLocalizedDate(event.start_date, language)} - {formatLocalizedDate(event.end_date, language)}</span></div><div className="flex justify-between gap-3"><span className="text-muted-foreground">Time</span><span>{event.start_time?.slice(0, 5) ?? "-"}</span></div>{event.note && <p className="text-muted-foreground">{event.note}</p>}</div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
@@ -442,6 +466,7 @@ function InternTab() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   )
@@ -455,7 +480,7 @@ export function EventsView() {
       <div className="flex gap-1.5">
         <button
           onClick={() => setTab("events")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
             tab === "events"
               ? "bg-primary text-primary-foreground"
               : "bg-card text-muted-foreground ring-1 ring-border hover:text-foreground"
@@ -466,7 +491,7 @@ export function EventsView() {
         </button>
         <button
           onClick={() => setTab("intern")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
             tab === "intern"
               ? "bg-primary text-primary-foreground"
               : "bg-card text-muted-foreground ring-1 ring-border hover:text-foreground"

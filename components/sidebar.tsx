@@ -95,7 +95,7 @@ export function MobileNav({ active, onChange }: { active: ViewKey; onChange: (v:
   const language = useLanguagePreference()
 
   return (
-    <nav className="flex items-center gap-1 overflow-x-auto border-b border-border bg-sidebar px-2 py-2 md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-[9000] flex gap-1 overflow-x-auto border-t border-border bg-sidebar/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-12px_40px_rgba(0,0,0,0.24)] backdrop-blur md:hidden">
       {nav.map((item) => {
         const isActive = active === item.key
         const Icon = item.icon
@@ -104,12 +104,12 @@ export function MobileNav({ active, onChange }: { active: ViewKey; onChange: (v:
             key={item.key}
             onClick={() => onChange(item.key)}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium",
+              "flex min-h-12 min-w-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-1 text-[10px] font-medium",
               isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/75",
             )}
           >
-            <Icon className="h-4 w-4" />
-            {text(language, item)}
+            <Icon className="h-5 w-5" />
+            <span className="max-w-full truncate">{text(language, item)}</span>
           </button>
         )
       })}

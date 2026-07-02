@@ -760,3 +760,18 @@
     transform: none;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* mobile tap targets */
+  main button,
+  main input,
+  main select,
+  main textarea {
+    min-height: 44px;
+  }
+
+  main .rounded-2xl {
+    border-radius: 0.875rem;
+  }
+}

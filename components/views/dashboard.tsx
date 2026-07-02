@@ -960,7 +960,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
             </p>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <ProgressScoreCard
             label={{ en: "Application readiness", ja: "応募準備度" }}
             sublabel={{ en: "Based on status and upcoming actions", ja: "企業ステータスと直近行動から算出" }}
@@ -1063,7 +1063,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon
 

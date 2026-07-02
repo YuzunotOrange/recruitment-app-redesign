@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { apiRequest } from "@/lib/api"
-import { formatCalendarMonth, text, useLanguagePreference } from "@/lib/language"
+import { formatCalendarMonth, formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
 
 type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "other"
 
@@ -114,7 +114,31 @@ export function TimelineView() {
 
       {error && <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-4 text-sm text-destructive">{error}</div>}
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="space-y-3 md:hidden" data-mobile-timeline-list>
+        {loading ? (
+          <div className="rounded-2xl border border-border bg-card px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "Loading timeline...", ja: "読み込み中..." })}</div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-card px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "No timeline items yet.", ja: "タイムライン項目はまだありません。" })}</div>
+        ) : (
+          rows.map((event) => (
+            <div key={event.id} className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-foreground">{event.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{event.company_name ?? text(language, { en: "No company", ja: "企業なし" })}</p>
+                </div>
+                <span className={"rounded-full px-2.5 py-1 text-xs font-medium text-primary-foreground " + typeTone[event.type]}>{event.type}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Schedule</span>
+                <span className="text-right text-foreground">{formatLocalizedDate(event.start_date, language)} - {formatLocalizedDate(event.end_date, language)}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-2xl border border-border bg-card md:block">
         <div className="overflow-x-auto">
           <div style={{ minWidth: `calc(${LABEL_WIDTH} + ${totalDays * COL}px)` }}>
             <div className="flex border-b border-border bg-primary text-primary-foreground">

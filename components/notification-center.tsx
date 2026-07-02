@@ -116,7 +116,7 @@ export function NotificationCenter() {
               <button
                 type="button"
                 onClick={markAllAsRead}
-                className="rounded-md border border-primary/30 px-2 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+                className="min-h-10 rounded-md border border-primary/30 px-3 py-2 text-xs font-medium text-primary transition hover:bg-primary/10"
               >
                 {text(language, { en: "Read all", ja: "すべて既読" })}
               </button>
@@ -124,7 +124,7 @@ export function NotificationCenter() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              className="min-h-10 min-w-10 rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               aria-label="Close notifications"
             >
               <X className="h-4 w-4" />
@@ -205,7 +205,7 @@ export function NotificationCenter() {
                       <button
                         type="button"
                         onClick={() => markAsRead(notification.id)}
-                        className="rounded-md border border-border/70 p-1.5 text-muted-foreground transition hover:border-primary/50 hover:bg-primary/10 hover:text-foreground"
+                        className="min-h-10 min-w-10 rounded-md border border-border/70 p-2 text-muted-foreground transition hover:border-primary/50 hover:bg-primary/10 hover:text-foreground"
                         aria-label="Mark notification as read"
                       >
                         <Check className="h-4 w-4" />
@@ -214,7 +214,7 @@ export function NotificationCenter() {
                     <button
                       type="button"
                       onClick={() => deleteNotification(notification.id)}
-                      className="rounded-md border border-border/70 p-1.5 text-muted-foreground transition hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+                      className="min-h-10 min-w-10 rounded-md border border-border/70 p-2 text-muted-foreground transition hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
                       aria-label="Delete notification"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -234,7 +234,7 @@ export function NotificationCenter() {
       <button
         type="button"
         onClick={toggleOpen}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-sm transition hover:border-primary/50 hover:text-foreground"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-sm transition hover:border-primary/50 hover:text-foreground"
         aria-label="Open notifications"
       >
         <Bell className="h-5 w-5" />
@@ -251,7 +251,7 @@ export function NotificationCenter() {
             className="absolute inset-0 bg-black/35 backdrop-blur-[1px] pointer-events-auto sm:hidden"
             onClick={() => setOpen(false)}
           />
-          <div className="pointer-events-auto fixed bottom-4 left-4 right-4 max-w-[calc(100vw-2rem)] sm:bottom-auto sm:left-auto sm:right-4 sm:top-20 sm:w-96 lg:right-6 xl:right-[22rem]">
+          <div className="pointer-events-auto fixed bottom-20 left-3 right-3 max-w-[calc(100vw-1.5rem)] sm:bottom-auto sm:left-auto sm:right-4 sm:top-20 sm:w-96 lg:right-6 xl:right-[22rem]">
             {panel}
           </div>
         </div>,

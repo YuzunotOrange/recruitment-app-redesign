@@ -269,18 +269,18 @@ export function CalendarView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <button onClick={() => step(-1)} className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground">
+      <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
+          <button onClick={() => step(-1)} className="min-h-11 min-w-11 rounded-lg border border-border bg-card p-2 text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-4 w-4" />
           </button>
           <span className="min-w-36 text-center text-sm font-semibold text-foreground">{label}</span>
-          <button onClick={() => step(1)} className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground">
+          <button onClick={() => step(1)} className="min-h-11 min-w-11 rounded-lg border border-border bg-card p-2 text-muted-foreground hover:text-foreground">
             <ChevronRight className="h-4 w-4" />
           </button>
           <button
             onClick={() => setCursor(new Date(TODAY))}
-            className="ml-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="col-span-3 rounded-lg border border-border bg-card px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground sm:col-span-1 sm:ml-1"
           >
             {text(language, copy.kpiToday)}
           </button>
@@ -311,9 +311,31 @@ export function CalendarView() {
           {text(language, { en: "No calendar items yet.", ja: "カレンダー項目はまだありません。" })}
         </div>
       ) : null}
+      {!loading && items.length > 0 && (
+        <div className="space-y-3 md:hidden" data-mobile-calendar-list>
+          {items
+            .filter((item) => parseIsoDate(item.date).getMonth() === cursor.getMonth())
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(0, 12)
+            .map((item) => (
+              <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+                <span className={"h-2.5 w-2.5 shrink-0 rounded-full " + dot[item.tone]} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{item.company}</p>
+                </div>
+                <span className="text-xs tabular-nums text-muted-foreground">{item.date.slice(5).replace("-", "/")}</span>
+              </div>
+            ))}
+        </div>
+      )}
+
+
       {!loading &&
         (mode === "month" ? (
-          <MonthView cursor={cursor} items={items} language={language} />
+          <div className="hidden md:block">
+            <MonthView cursor={cursor} items={items} language={language} />
+          </div>
         ) : (
           <WeekView cursor={cursor} items={items} language={language} />
         ))}
