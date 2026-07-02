@@ -21,7 +21,7 @@ def create_notification(db: Session, user_id: int, **overrides) -> Notification:
         "type": "deadline",
         "related_type": "company",
         "related_id": 1,
-        "scheduled_at": datetime.now(UTC) + timedelta(days=1),
+        "scheduled_at": datetime.now(UTC) - timedelta(minutes=1),
     }
     payload.update(overrides)
     notification = Notification(**payload)
@@ -62,7 +62,7 @@ def test_notification_list_mark_read_read_all_and_delete(
     assert [item["id"] for item in remaining.json()] == [first.id]
 
 
-def test_past_scheduled_notifications_are_hidden(
+def test_future_scheduled_notifications_are_hidden_until_due(
     client: TestClient,
     db_session: Session,
     auth_headers: dict[str, str],
@@ -73,8 +73,8 @@ def test_past_scheduled_notifications_are_hidden(
 
     listed = client.get("/notifications", headers=auth_headers)
     assert listed.status_code == 200
-    assert [item["id"] for item in listed.json()] == [future.id]
-    assert past.id not in {item["id"] for item in listed.json()}
+    assert [item["id"] for item in listed.json()] == [past.id]
+    assert future.id not in {item["id"] for item in listed.json()}
 
 
 def test_notification_user_isolation(
@@ -430,20 +430,23 @@ def test_notifications_response_filters_disabled_types(
     assert hidden.id not in ids
 
 
-def test_event_create_update_generates_interview_and_internship_notifications(
+def test_event_notifications_only_show_when_due(
     client: TestClient,
     auth_headers: dict[str, str],
+    monkeypatch,
 ):
-    start_day = datetime.now(UTC).date() + timedelta(days=5)
+    import app.services.notifications as notification_service
+
+    monkeypatch.setattr(notification_service, "now_jst", lambda: datetime(2026, 7, 2, 9, 0, tzinfo=JST))
     created = client.post(
         "/events",
         headers=auth_headers,
         json={
             "company_id": None,
             "title": "Final Interview",
-            "start_date": start_day.isoformat(),
-            "end_date": start_day.isoformat(),
-            "start_time": "13:00",
+            "start_date": "2026-07-15",
+            "end_date": "2026-07-15",
+            "start_time": "14:00",
             "type": "interview",
             "note": None,
         },
@@ -453,39 +456,43 @@ def test_event_create_update_generates_interview_and_internship_notifications(
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
-    interview_notifications = [item for item in notifications.json() if item["type"] == "interview"]
-    assert len(interview_notifications) == 2
-    assert {item["related_type"] for item in interview_notifications} == {"event"}
-    assert {item["related_id"] for item in interview_notifications} == {event_id}
-    assert {item["title"] for item in interview_notifications} == {"Interview Reminder"}
-    assert [item["scheduled_at"][:10] for item in interview_notifications] == [
-        (start_day - timedelta(days=1)).isoformat(),
-        start_day.isoformat(),
-    ]
-    assert [item["scheduled_at"][11:16] for item in interview_notifications] == ["13:00", "12:30"]
+    assert [item for item in notifications.json() if item["type"] == "interview"] == []
 
-    original_ids = [item["id"] for item in interview_notifications]
-    new_start_day = start_day + timedelta(days=2)
-    rescheduled = client.put(
-        f"/events/{event_id}",
-        headers=auth_headers,
-        json={"start_date": new_start_day.isoformat(), "end_date": new_start_day.isoformat()},
-    )
-    assert rescheduled.status_code == 200
-
+    monkeypatch.setattr(notification_service, "now_jst", lambda: datetime(2026, 7, 14, 9, 0, tzinfo=JST))
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     interview_notifications = [item for item in notifications.json() if item["type"] == "interview"]
-    assert len(interview_notifications) == 2
-    assert [item["id"] for item in interview_notifications] == original_ids
-    assert [item["scheduled_at"][:10] for item in interview_notifications] == [
-        (new_start_day - timedelta(days=1)).isoformat(),
-        new_start_day.isoformat(),
-    ]
+    assert len(interview_notifications) == 1
+    assert interview_notifications[0]["related_type"] == "event"
+    assert interview_notifications[0]["related_id"] == event_id
+    assert interview_notifications[0]["title"] == "Interview Reminder"
+    assert interview_notifications[0]["message"] == "Final Interview is scheduled tomorrow."
+    assert interview_notifications[0]["scheduled_at"][:10] == "2026-07-14"
+    original_id = interview_notifications[0]["id"]
 
-    updated = client.put(f"/events/{event_id}", headers=auth_headers, json={"type": "intern", "title": "Summer Internship"})
+    enabled_30min = client.put("/reminder-settings", headers=auth_headers, json={"interview_30min": True})
+    assert enabled_30min.status_code == 200
+    monkeypatch.setattr(notification_service, "now_jst", lambda: datetime(2026, 7, 15, 13, 30, tzinfo=JST))
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    interview_notifications = [item for item in notifications.json() if item["type"] == "interview"]
+    assert len(interview_notifications) == 1
+    assert interview_notifications[0]["id"] == original_id
+    assert interview_notifications[0]["message"] == "Final Interview starts in 30 minutes."
+
+    rescheduled = client.put(
+        f"/events/{event_id}",
+        headers=auth_headers,
+        json={"start_date": "2026-07-20", "end_date": "2026-07-20"},
+    )
+    assert rescheduled.status_code == 200
+    notifications = client.get("/notifications", headers=auth_headers)
+    assert notifications.status_code == 200
+    assert [item for item in notifications.json() if item["type"] == "interview"] == []
+
+    updated = client.put(f"/events/{event_id}", headers=auth_headers, json={"type": "intern", "title": "Summer Internship", "start_date": "2026-07-16", "end_date": "2026-07-16"})
     assert updated.status_code == 200
-
+    monkeypatch.setattr(notification_service, "now_jst", lambda: datetime(2026, 7, 15, 9, 0, tzinfo=JST))
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     data = notifications.json()
@@ -536,7 +543,7 @@ def test_event_briefing_and_offer_notifications(client: TestClient, auth_headers
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     data = notifications.json()
-    assert len([item for item in data if item["title"] == "Explanation Session Reminder" and item["type"] == "custom"]) == 1
+    assert [item for item in data if item["title"] == "Explanation Session Reminder" and item["type"] == "custom"] == []
     assert len([item for item in data if item["title"] == "Offer Received" and item["type"] == "offer"]) == 1
 
 
@@ -545,7 +552,7 @@ def test_automatic_notification_user_isolation(
     auth_headers: dict[str, str],
     second_user_headers: dict[str, str],
 ):
-    deadline = (datetime.now(UTC).date() + timedelta(days=9)).isoformat()
+    deadline = (datetime.now(JST).date() + timedelta(days=7)).isoformat()
     user_a_company = client.post(
         "/companies",
         headers=auth_headers,
