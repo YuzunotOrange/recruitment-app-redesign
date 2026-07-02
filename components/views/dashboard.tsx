@@ -15,6 +15,7 @@ import {
   GraduationCap,
   ListTodo,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
   Trophy,
   X,
@@ -219,6 +220,18 @@ function eventTimeLabel(event: ApiEvent) {
   return event.start_time ? event.start_time.slice(0, 5) : "No time"
 }
 
+const urgencyTone: Record<ActionUrgency, Tone> = {
+  high: "danger",
+  medium: "warning",
+  low: "info",
+}
+
+const urgencyLabel: Record<ActionUrgency, { en: string; ja: string }> = {
+  high: { en: "high", ja: "high" },
+  medium: { en: "medium", ja: "medium" },
+  low: { en: "low", ja: "low" },
+}
+
 function companyMeta(company: ApiCompany, language: LanguageMode) {
   const status = companyStatusMeta[company.status]
   const industry = industryMeta[company.industry]
@@ -344,6 +357,17 @@ type CareerLevel = {
   description: { en: string; ja: string }
 }
 
+type ActionUrgency = "high" | "medium" | "low"
+
+type ActionSuggestion = {
+  id: string
+  title: { en: string; ja: string }
+  reason: { en: string; ja: string }
+  action: { en: string; ja: string }
+  urgency: ActionUrgency
+  score: number
+}
+
 type ProgressScore = {
   readiness: number
   deadlineRisk: number
@@ -462,6 +486,163 @@ function getProgressScore(summary: DashboardSummary): ProgressScore {
     careerLevel: getCareerLevel(readiness, interviews, offers),
     nextFocus,
   }
+}
+
+function getSoonestDeadline(companies: ApiCompany[], events: ApiEvent[]) {
+  const companyDeadlines = companies
+    .filter((company) => company.es_deadline)
+    .map((company) => ({
+      id: `company-${company.id}`,
+      title: `${company.name} ES`,
+      date: company.es_deadline as string,
+      days: daysUntil(company.es_deadline as string),
+    }))
+  const eventDeadlines = events
+    .filter((event) => event.type === "deadline")
+    .map((event) => ({
+      id: `event-${event.id}`,
+      title: event.title,
+      date: event.start_date,
+      days: daysUntil(event.start_date),
+    }))
+
+  return [...companyDeadlines, ...eventDeadlines]
+    .filter((item) => item.days >= 0)
+    .sort((a, b) => a.days - b.days || a.date.localeCompare(b.date))[0]
+}
+
+function getNextEvent(events: ApiEvent[]) {
+  return events
+    .map((event) => ({ ...event, days: daysUntil(event.start_date) }))
+    .filter((event) => event.days >= 0)
+    .sort((a, b) => a.days - b.days || a.start_date.localeCompare(b.start_date))[0]
+}
+
+function buildActionSuggestions({
+  summary,
+  progressScore,
+  companies,
+  events,
+}: {
+  summary: DashboardSummary
+  progressScore: ProgressScore
+  companies: ApiCompany[]
+  events: ApiEvent[]
+}): ActionSuggestion[] {
+  const suggestions: ActionSuggestion[] = []
+  const plannedCompanies = companies.filter((company) => company.status === "planned")
+  const esCompanies = companies.filter((company) => company.status === "es_submitted")
+  const soonestDeadline = getSoonestDeadline(companies, events)
+  const nextEvent = getNextEvent(events.filter((event) => event.type !== "deadline"))
+  const interviewsSoon = events.filter((event) => event.type === "interview" && daysUntil(event.start_date) >= 0 && daysUntil(event.start_date) <= 3)
+  const weekEvents = events.filter((event) => daysUntil(event.start_date) >= 0 && daysUntil(event.start_date) <= 7)
+
+  if (soonestDeadline && soonestDeadline.days <= 1) {
+    suggestions.push({
+      id: "deadline-critical",
+      title: { en: "Clear the nearest deadline", ja: "最短締切を先に片付ける" },
+      reason: {
+        en: `${soonestDeadline.title} is due ${soonestDeadline.days === 0 ? "today" : "tomorrow"}.`,
+        ja: `${soonestDeadline.title} が${soonestDeadline.days === 0 ? "今日" : "明日"}締切です。`,
+      },
+      action: { en: "Open the ES or deadline item, finish the draft, and submit or mark the next step.", ja: "ESまたは締切項目を開き、下書き完成から提出・次工程登録まで進めましょう。" },
+      urgency: "high",
+      score: 100,
+    })
+  } else if (soonestDeadline && soonestDeadline.days <= 7) {
+    suggestions.push({
+      id: "deadline-week",
+      title: { en: "Reserve time for this week's deadline", ja: "今週の締切時間を確保する" },
+      reason: { en: `${soonestDeadline.title} is due in ${soonestDeadline.days} days.`, ja: `${soonestDeadline.title} まで残り${soonestDeadline.days}日です。` },
+      action: { en: "Block one work session and add missing notes before the deadline risk rises.", ja: "作業時間を1枠確保し、未記入メモや提出準備を埋めましょう。" },
+      urgency: progressScore.deadlineRisk >= 70 ? "high" : "medium",
+      score: 86,
+    })
+  }
+
+  if (interviewsSoon.length > 0) {
+    const nextInterview = interviewsSoon.sort((a, b) => a.start_date.localeCompare(b.start_date))[0]
+    suggestions.push({
+      id: "interview-prep",
+      title: { en: "Prep for the next interview", ja: "次の面接準備を固める" },
+      reason: { en: `${nextInterview.title} is scheduled soon.`, ja: `${nextInterview.title} が直近に予定されています。` },
+      action: { en: "Write three expected questions, one company-specific motivation, and one reverse question.", ja: "想定質問3つ、企業別志望理由1つ、逆質問1つを整理しましょう。" },
+      urgency: "high",
+      score: 94,
+    })
+  }
+
+  if (summary.kpis.today_tasks && summary.kpis.today_tasks > 0) {
+    suggestions.push({
+      id: "today-cleanup",
+      title: { en: "Finish today's open actions", ja: "今日の未処理を終わらせる" },
+      reason: { en: `${summary.kpis.today_tasks} action is due or active today.`, ja: `今日対応の項目が${summary.kpis.today_tasks}件あります。` },
+      action: { en: "Check today's list, complete quick items first, then update the related company status.", ja: "今日リストを確認し、短時間で終わるものから処理して企業ステータスを更新しましょう。" },
+      urgency: "high",
+      score: 90,
+    })
+  }
+
+  if (progressScore.incompleteTasks >= 4) {
+    suggestions.push({
+      id: "open-task-triage",
+      title: { en: "Reduce open task noise", ja: "未完了タスクを仕分けする" },
+      reason: { en: `${progressScore.incompleteTasks} open tasks are affecting your readiness score.`, ja: `未完了タスクが${progressScore.incompleteTasks}件あり、準備度に影響しています。` },
+      action: { en: "Split them into submit today, schedule this week, and archive or decline.", ja: "今日提出、今週予定化、保留・辞退の3つに分けて整理しましょう。" },
+      urgency: progressScore.deadlineRisk >= 60 ? "high" : "medium",
+      score: 82,
+    })
+  }
+
+  if (plannedCompanies.length > 0 && progressScore.readiness < 60) {
+    const target = plannedCompanies[0]
+    suggestions.push({
+      id: "planned-next-step",
+      title: { en: "Move one planned company forward", ja: "応募予定企業を1社進める" },
+      reason: { en: `${plannedCompanies.length} companies are still planned.`, ja: `応募予定の企業が${plannedCompanies.length}社あります。` },
+      action: { en: `Pick ${target.name}, add the ES deadline or first event, and change the status when started.`, ja: `${target.name} のES締切または初回イベントを登録し、着手したらステータスを更新しましょう。` },
+      urgency: "medium",
+      score: 70,
+    })
+  }
+
+  if (esCompanies.length > 0 && progressScore.deadlineRisk < 70) {
+    suggestions.push({
+      id: "es-followup",
+      title: { en: "Review ES companies", ja: "ES確認中の企業を見直す" },
+      reason: { en: `${esCompanies.length} companies are in ES review.`, ja: `ES確認中の企業が${esCompanies.length}社あります。` },
+      action: { en: "Check whether each one needs a test, interview date, or follow-up note.", ja: "各社にWebテスト・面接日程・追記メモが必要か確認しましょう。" },
+      urgency: "medium",
+      score: 62,
+    })
+  }
+
+  if (!nextEvent || weekEvents.length <= 1) {
+    suggestions.push({
+      id: "schedule-next-action",
+      title: { en: "Add the next scheduled action", ja: "次の予定を1件追加する" },
+      reason: { en: "Your near-term action count is low.", ja: "直近の行動予定が少なめです。" },
+      action: { en: "Add a briefing, interview prep block, deadline, or follow-up event for this week.", ja: "説明会、面接準備枠、締切、フォロー予定のどれかを今週に追加しましょう。" },
+      urgency: progressScore.weekActions === 0 ? "medium" : "low",
+      score: 50,
+    })
+  }
+
+  if (suggestions.length === 0) {
+    suggestions.push({
+      id: "maintain-pace",
+      title: { en: "Keep the current pace", ja: "今のペースを維持する" },
+      reason: { en: "No urgent risk was detected from your current dashboard data.", ja: "現在のダッシュボード上では大きな緊急リスクは見つかっていません。" },
+      action: { en: "Review the next event and keep company notes fresh.", ja: "次の予定を確認し、企業メモを最新に保ちましょう。" },
+      urgency: "low",
+      score: 10,
+    })
+  }
+
+  const urgencyWeight: Record<ActionUrgency, number> = { high: 3, medium: 2, low: 1 }
+  return suggestions
+    .sort((a, b) => urgencyWeight[b.urgency] - urgencyWeight[a.urgency] || b.score - a.score)
+    .slice(0, 3)
 }
 
 function ScoreBar({ value, tone }: { value: number; tone: Tone }) {
@@ -666,6 +847,10 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   )
 
   const progressScore = useMemo(() => getProgressScore(summary), [summary])
+  const actionSuggestions = useMemo(
+    () => buildActionSuggestions({ summary, progressScore, companies, events }),
+    [companies, events, progressScore, summary],
+  )
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
   const failedCount = (summary.company_status_counts.es_rejected ?? 0) + (summary.company_status_counts.spi_rejected ?? 0)
   const clearedCount = summary.kpis.interviews + summary.kpis.offers
@@ -789,6 +974,54 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
             tone={progressScore.incompleteTasks > 5 ? "warning" : "neutral"}
             language={language}
           />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+              <Sparkles className="h-4 w-4" />
+              <span>{text(language, { en: "AI Action Suggestions", ja: "AI行動提案" })}</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-foreground">
+              {text(language, { en: "Next best actions", ja: "次にやるべき行動" })}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {text(language, { en: "Rule-based suggestions from your score, deadlines, events, and open tasks.", ja: "進捗スコア、締切、予定、未完了タスクをもとにしたルールベース提案です。" })}
+            </p>
+          </div>
+          <StatusBadge tone="info">
+            {text(language, { en: "Rules", ja: "ルール判定" })}
+          </StatusBadge>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          {actionSuggestions.map((suggestion) => (
+            <div key={suggestion.id} className="rounded-2xl border border-border bg-background/55 p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <h4 className="text-sm font-semibold leading-6 text-foreground">
+                  {text(language, suggestion.title)}
+                </h4>
+                <StatusBadge tone={urgencyTone[suggestion.urgency]}>
+                  {text(language, urgencyLabel[suggestion.urgency])}
+                </StatusBadge>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {text(language, { en: "Reason", ja: "理由" })}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">{text(language, suggestion.reason)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {text(language, { en: "Recommended action", ja: "推奨アクション" })}
+                  </p>
+                  <p className="mt-1 text-foreground">{text(language, suggestion.action)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
