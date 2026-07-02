@@ -128,7 +128,7 @@ cd backend
 docker compose up --build
 ```
 
-The container runs `alembic upgrade head` before starting uvicorn. Compose uses SQLite locally through the named volume `backend-sqlite-data`. PostgreSQL is not included in the local compose file.
+The container runs `python -m app.core.migrations` before starting uvicorn. The startup migration helper runs `alembic upgrade head` for empty or already versioned databases, and safely stamps an existing complete pre-Alembic schema before upgrading. Compose uses SQLite locally through the named volume `backend-sqlite-data`. PostgreSQL is not included in the local compose file.
 
 Container environment variables:
 
@@ -154,11 +154,11 @@ Notes:
 - `DATABASE_URL` controls the database backend. SQLite works locally; PostgreSQL is supported through `psycopg2-binary`.
 - In non-local environments, CORS allows only `FRONTEND_ORIGIN`.
 - `JWT_SECRET_KEY` is required outside local development.
-- Run `alembic upgrade head` as part of deployment before serving traffic. The provided Docker image does this in its default command.
+- Run migrations as part of deployment before serving traffic. The provided Docker image runs `python -m app.core.migrations`, which handles both new databases and existing complete pre-Alembic schemas.
 
 ## Render deployment
 
-The backend Dockerfile is compatible with Render Web Services. It starts by running migrations, then uvicorn on `0.0.0.0` and respects Render's `PORT` environment variable.
+The backend Dockerfile is compatible with Render Web Services. It starts by running the migration bootstrap helper, then uvicorn on `0.0.0.0` and respects Render's `PORT` environment variable. This avoids failing on first Alembic deployment when the production database already has tables from the old `create_all()` startup path.
 
 Recommended Render settings:
 
