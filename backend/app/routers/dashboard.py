@@ -21,6 +21,14 @@ from app.schemas.dashboard import (
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
+def event_time_label(event: Event) -> str | None:
+    if event.start_time and event.end_time:
+        return f"{event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}"
+    if event.start_time:
+        return event.start_time.strftime("%H:%M")
+    return None
+
+
 @router.get("/summary", response_model=DashboardSummary)
 def dashboard_summary(
     db: Session = Depends(get_db),
@@ -98,7 +106,7 @@ def dashboard_summary(
             title=event.title,
             company_name=event.company.name if event.company else None,
             start_at=event.start_date.isoformat(),
-            time=event.start_time.strftime("%H:%M") if event.start_time else None,
+            time=event_time_label(event),
         )
         for event in upcoming_schedule_events[:5]
     ]

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.database import Base, get_db
 from app.main import app
-from app.models import Company, Event, Notification, ReminderSettings, Task, User  # noqa: F401
+from app.models import Company, Event, EventCandidateDate, Notification, ReminderSettings, Task, User  # noqa: F401
 
 
 @pytest.fixture()

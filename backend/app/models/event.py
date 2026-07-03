@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, Time, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, Time, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -16,6 +16,7 @@ class Event(Base):
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False, default="briefing")
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -24,3 +25,26 @@ class Event(Base):
     user = relationship("User", back_populates="events")
     company = relationship("Company", back_populates="events")
     tasks = relationship("Task", back_populates="related_event")
+    candidate_dates = relationship(
+        "EventCandidateDate",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventCandidateDate.start_date.asc(), EventCandidateDate.start_time.asc(), EventCandidateDate.id.asc()",
+    )
+
+
+class EventCandidateDate(Base):
+    __tablename__ = "event_candidate_dates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), index=True, nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    event = relationship("Event", back_populates="candidate_dates")

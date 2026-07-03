@@ -36,6 +36,20 @@ def _event_start_at(event: Event) -> datetime:
     return datetime.combine(event.start_date, event.start_time or time(hour=9), tzinfo=JST)
 
 
+def _event_time_label(event: Event) -> str:
+    if event.start_time and event.end_time:
+        return f"{event.start_time.strftime('%H:%M')} - {event.end_time.strftime('%H:%M')}"
+    if event.start_time:
+        return event.start_time.strftime("%H:%M")
+    return "all day"
+
+
+def _event_time_suffix(event: Event) -> str:
+    if event.start_time and event.end_time:
+        return f" ({_event_time_label(event)})"
+    return ""
+
+
 def _to_jst(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=JST)
@@ -52,8 +66,9 @@ def is_current_or_future_notification(value: datetime | None, today: date | None
 def is_due_notification(value: datetime | None, now: datetime | None = None) -> bool:
     if value is None:
         return True
-    baseline = now or now_jst()
-    return _to_jst(value) <= baseline
+    if now is not None:
+        return _to_jst(value) <= now
+    return _to_jst(value).date() <= today_jst()
 
 
 def get_or_create_reminder_settings(db: Session, user_id: int) -> ReminderSettings:
@@ -189,40 +204,48 @@ def sync_company_notifications(company: Company, db: Session) -> None:
 
 def sync_event_notifications(event: Event, db: Session) -> None:
     start_at = _event_start_at(event)
+    time_suffix = _event_time_suffix(event)
     specs: list[NotificationSpec] = []
     today = today_jst()
     settings = get_or_create_reminder_settings(db, event.user_id)
 
     if event.type == "interview" and settings.interview_enabled:
-        minutes_until_start = (start_at - now_jst()).total_seconds() / 60
-        if settings.interview_1day and days_until_jst(event.start_date, today) == 1:
-            specs.append(
-                {
-                    "title": "Interview Reminder",
-                    "message": f"{event.title} is scheduled tomorrow.",
-                    "type": "interview",
-                    "scheduled_at": _at_local_time(today),
-                }
-            )
-        if settings.interview_30min and 0 <= minutes_until_start <= 30:
-            specs.append(
-                {
-                    "title": "Interview Reminder",
-                    "message": f"{event.title} starts in 30 minutes.",
-                    "type": "interview",
-                    "scheduled_at": now_jst(),
-                }
-            )
+        interview_specs: list[tuple[bool, datetime, str]] = [
+            (
+                settings.interview_1day,
+                start_at - timedelta(days=1),
+                f"{event.title} is scheduled tomorrow{time_suffix}.",
+            ),
+            (
+                settings.interview_30min,
+                start_at - timedelta(minutes=30),
+                f"{event.title} starts in 30 minutes{time_suffix}.",
+            ),
+        ]
+        for enabled, scheduled_at, message in interview_specs:
+            if not enabled:
+                continue
+            if is_current_or_future_notification(scheduled_at, today):
+                specs.append(
+                    {
+                        "title": "Interview Reminder",
+                        "message": message,
+                        "type": "interview",
+                        "scheduled_at": scheduled_at,
+                    }
+                )
 
-    if event.type == "intern" and settings.internship_enabled and days_until_jst(event.start_date, today) == 1:
-        specs.append(
-            {
-                "title": "Internship Reminder",
-                "message": f"{event.title} starts on {event.start_date.isoformat()}.",
-                "type": "internship",
-                "scheduled_at": _at_local_time(today),
-            }
-        )
+    if event.type == "intern" and settings.internship_enabled:
+        scheduled_at = start_at - timedelta(days=1)
+        if is_current_or_future_notification(scheduled_at, today):
+            specs.append(
+                {
+                    "title": "Internship Reminder",
+                    "message": f"{event.title} starts on {event.start_date.isoformat()}{time_suffix}.",
+                    "type": "internship",
+                    "scheduled_at": scheduled_at,
+                }
+            )
 
     if event.type == "offer" and settings.offer_enabled:
         specs.append(
@@ -234,15 +257,17 @@ def sync_event_notifications(event: Event, db: Session) -> None:
             }
         )
 
-    if event.type == "briefing" and settings.info_session_enabled and days_until_jst(event.start_date, today) == 1:
-        specs.append(
-            {
-                "title": "Explanation Session Reminder",
-                "message": f"{event.title} is scheduled tomorrow.",
-                "type": "custom",
-                "scheduled_at": _at_local_time(today),
-            }
-        )
+    if event.type == "briefing" and settings.info_session_enabled:
+        scheduled_at = start_at - timedelta(days=1)
+        if is_current_or_future_notification(scheduled_at, today):
+            specs.append(
+                {
+                    "title": "Explanation Session Reminder",
+                    "message": f"{event.title} is scheduled tomorrow{time_suffix}.",
+                    "type": "custom",
+                    "scheduled_at": scheduled_at,
+                }
+            )
 
     _sync_related_notifications(
         db,

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.company import Company
-from app.models.event import Event
+from app.models.event import Event, EventCandidateDate
 from app.models.user import User
 from app.schemas.event import EventCreate, EventRead, EventUpdate
 from app.services.notifications import delete_event_notifications, sync_event_notifications
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 def get_owned_event(event_id: int, user_id: int, db: Session) -> Event:
     event = db.scalar(
         select(Event)
-        .options(joinedload(Event.company))
+        .options(joinedload(Event.company), selectinload(Event.candidate_dates))
         .where(Event.id == event_id, Event.user_id == user_id)
     )
     if event is None:
@@ -38,8 +38,50 @@ def serialize_event(event: Event) -> EventRead:
         {
             **event.__dict__,
             "company_name": event.company.name if event.company else None,
+            "candidate_dates": event.candidate_dates,
         }
     )
+
+
+def validate_candidate_selection(candidates: list) -> None:
+    selected_count = sum(1 for candidate in candidates if candidate.is_selected)
+    if selected_count > 1:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only one candidate date can be selected.")
+
+
+def effective_candidate(candidates: list[EventCandidateDate]) -> EventCandidateDate | None:
+    if not candidates:
+        return None
+    selected = next((candidate for candidate in candidates if candidate.is_selected), None)
+    if selected is not None:
+        return selected
+    return sorted(
+        candidates,
+        key=lambda candidate: (
+            candidate.start_date,
+            candidate.start_time is None,
+            candidate.start_time,
+            candidate.id or 0,
+        ),
+    )[0]
+
+
+def sync_event_representative_date(event: Event) -> None:
+    candidate = effective_candidate(list(event.candidate_dates))
+    if candidate is None:
+        return
+    event.start_date = candidate.start_date
+    event.end_date = candidate.end_date
+    event.start_time = candidate.start_time
+    event.end_time = candidate.end_time
+
+
+def replace_candidate_dates(event: Event, candidates: list) -> None:
+    validate_candidate_selection(candidates)
+    event.candidate_dates.clear()
+    for candidate in candidates:
+        event.candidate_dates.append(EventCandidateDate(**candidate.model_dump()))
+    sync_event_representative_date(event)
 
 
 @router.get("", response_model=list[EventRead])
@@ -51,7 +93,7 @@ def list_events(
 ) -> list[EventRead]:
     stmt = (
         select(Event)
-        .options(joinedload(Event.company))
+        .options(joinedload(Event.company), selectinload(Event.candidate_dates))
         .where(Event.user_id == current_user.id)
     )
     if company_id is not None:
@@ -69,7 +111,9 @@ def create_event(
     current_user: User = Depends(get_current_user),
 ) -> EventRead:
     validate_owned_company(payload.company_id, current_user.id, db)
-    event = Event(user_id=current_user.id, **payload.model_dump())
+    payload_data = payload.model_dump(exclude={"candidate_dates"})
+    event = Event(user_id=current_user.id, **payload_data)
+    replace_candidate_dates(event, payload.candidate_dates)
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -96,7 +140,7 @@ def update_event(
     current_user: User = Depends(get_current_user),
 ) -> EventRead:
     event = get_owned_event(event_id, current_user.id, db)
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True, exclude={"candidate_dates"})
 
     if "company_id" in update_data:
         validate_owned_company(update_data["company_id"], current_user.id, db)
@@ -108,6 +152,9 @@ def update_event(
 
     for key, value in update_data.items():
         setattr(event, key, value)
+
+    if payload.candidate_dates is not None:
+        replace_candidate_dates(event, payload.candidate_dates)
 
     db.commit()
     db.refresh(event)

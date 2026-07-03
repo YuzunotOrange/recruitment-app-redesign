@@ -25,6 +25,7 @@ def event_payload(**overrides):
         "start_date": future.isoformat(),
         "end_date": future.isoformat(),
         "start_time": "10:00",
+        "end_time": None,
         "type": "briefing",
         "note": "event memo",
     }
@@ -86,6 +87,7 @@ def test_event_crud_and_authenticated_owner(client: TestClient, auth_headers: di
     assert updated.status_code == 200
     assert updated.json()["title"] == "Updated Briefing"
     assert updated.json()["type"] == "interview"
+    assert updated.json()["candidate_dates"] == []
 
     deleted = client.delete(f"/events/{event_id}", headers=auth_headers)
     assert deleted.status_code == 204
@@ -171,3 +173,110 @@ def test_dashboard_summary_reflects_companies_events_and_deadlines(
     assert data["industry_counts"]["it"] == 1
     assert any(event["id"] == briefing["id"] for event in data["upcoming_events"])
     assert any(deadline_item["id"] == f"event-{deadline['id']}" for deadline_item in data["upcoming_deadlines"])
+
+
+def test_event_with_end_time_displays_time_range_in_dashboard(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(UTC).date()
+    event = create_event(
+        client,
+        auth_headers,
+        title="Timed Interview",
+        type="interview",
+        start_date=(today + timedelta(days=3)).isoformat(),
+        end_date=(today + timedelta(days=3)).isoformat(),
+        start_time="09:30",
+        end_time="12:00",
+    )
+
+    assert event["start_time"] == "09:30:00"
+    assert event["end_time"] == "12:00:00"
+
+    summary = client.get("/dashboard/summary", headers=auth_headers)
+    assert summary.status_code == 200
+    assert any(item["time"] == "09:30 - 12:00" for item in summary.json()["upcoming_events"])
+
+
+def test_event_with_one_candidate_uses_candidate_as_representative(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(UTC).date()
+    candidate_day = today + timedelta(days=5)
+    event = create_event(
+        client,
+        auth_headers,
+        title="Intern Candidate",
+        type="intern",
+        candidate_dates=[
+            {
+                "start_date": candidate_day.isoformat(),
+                "end_date": candidate_day.isoformat(),
+                "start_time": "13:00",
+                "end_time": "16:00",
+                "note": "first slot",
+                "is_selected": False,
+            }
+        ],
+    )
+
+    assert event["start_date"] == candidate_day.isoformat()
+    assert event["end_date"] == candidate_day.isoformat()
+    assert event["start_time"] == "13:00:00"
+    assert event["end_time"] == "16:00:00"
+    assert len(event["candidate_dates"]) == 1
+
+
+def test_event_with_multiple_candidates_and_selected_candidate(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(UTC).date()
+    first = today + timedelta(days=4)
+    selected = today + timedelta(days=8)
+    event = create_event(
+        client,
+        auth_headers,
+        title="Intern Options",
+        type="intern",
+        candidate_dates=[
+            {
+                "start_date": first.isoformat(),
+                "end_date": first.isoformat(),
+                "start_time": "09:30",
+                "end_time": "12:00",
+                "note": "candidate 1",
+                "is_selected": False,
+            },
+            {
+                "start_date": selected.isoformat(),
+                "end_date": selected.isoformat(),
+                "start_time": None,
+                "end_time": None,
+                "note": "selected all day",
+                "is_selected": True,
+            },
+        ],
+    )
+
+    assert event["start_date"] == selected.isoformat()
+    assert event["start_time"] is None
+    assert len(event["candidate_dates"]) == 2
+    assert sum(1 for candidate in event["candidate_dates"] if candidate["is_selected"]) == 1
+
+
+def test_event_rejects_multiple_selected_candidates(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(UTC).date()
+    response = client.post(
+        "/events",
+        headers=auth_headers,
+        json=event_payload(
+            candidate_dates=[
+                {
+                    "start_date": (today + timedelta(days=4)).isoformat(),
+                    "end_date": (today + timedelta(days=4)).isoformat(),
+                    "is_selected": True,
+                },
+                {
+                    "start_date": (today + timedelta(days=5)).isoformat(),
+                    "end_date": (today + timedelta(days=5)).isoformat(),
+                    "is_selected": True,
+                },
+            ]
+        ),
+    )
+
+    assert response.status_code == 422
