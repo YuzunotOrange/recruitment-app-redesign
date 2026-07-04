@@ -11,7 +11,7 @@ import { requestAppDataRefresh } from "@/lib/notification-events"
 import { SplitDateInput } from "@/components/split-date-input"
 import { StatusBadge } from "@/components/status-badge"
 
-type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "other"
+type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "offer" | "other"
 
 type ApiCompany = {
   id: number
@@ -93,6 +93,7 @@ const eventTypeMeta: Record<EventType, { ja: string; tone: "info" | "warning" | 
   test: { ja: "Test", tone: "warning" },
   deadline: { ja: "Deadline", tone: "danger" },
   intern: { ja: "Intern", tone: "success" },
+  offer: { ja: "Offer", tone: "success" },
   other: { ja: "Other", tone: "neutral" },
 }
 
@@ -209,6 +210,7 @@ function EventsTab() {
   const [form, setForm] = useState<EventForm>(emptyForm)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [expandedIds, setExpandedIds] = useState<number[]>([])
+  const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -324,6 +326,7 @@ function EventsTab() {
 
   const handleEdit = (event: ApiEvent) => {
     setEditingId(event.id)
+    setSelectedEvent(event)
     setForm(toForm(event))
   }
 
@@ -335,6 +338,7 @@ function EventsTab() {
       await apiRequest<void>(`/events/${eventId}`, { method: "DELETE" })
       setEvents((current) => current.filter((event) => event.id !== eventId))
       requestAppDataRefresh()
+      if (selectedEvent?.id === eventId) setSelectedEvent(null)
       if (editingId === eventId) resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete event.")
@@ -409,11 +413,12 @@ function EventsTab() {
             ariaLabel="End date"
             className="lg:col-span-2"
           />
-          <input
+          <textarea
             value={form.note}
             onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-            placeholder={text(language, { en: "Note", ja: "メモ" })}
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            placeholder={text(language, { en: "Detail / note", ja: "詳細 / メモ" })}
+            rows={3}
+            className="min-h-24 resize-y rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-4"
           />
           <div className="flex gap-2 lg:col-span-1">
             <button
@@ -516,6 +521,26 @@ function EventsTab() {
         </div>
       )}
 
+      {selectedEvent && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Event detail</p>
+              <h3 className="mt-1 text-lg font-semibold text-foreground">{selectedEvent.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{selectedEvent.company_name ?? text(language, { en: "No company", ja: "企業未設定" })}</p>
+            </div>
+            <button type="button" onClick={() => setSelectedEvent(null)} className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground">Close</button>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div><p className="text-xs text-muted-foreground">Type</p><p className="font-medium text-foreground">{selectedEvent.type}</p></div>
+            <div><p className="text-xs text-muted-foreground">Start</p><p className="font-medium text-foreground">{formatLocalizedDate(selectedEvent.start_date, language)}</p></div>
+            <div><p className="text-xs text-muted-foreground">End</p><p className="font-medium text-foreground">{formatLocalizedDate(selectedEvent.end_date, language)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Time</p><p className="font-medium text-foreground">{selectedEvent.start_time?.slice(0, 5) ?? "-"}</p></div>
+          </div>
+          <p className="mt-4 whitespace-pre-wrap rounded-xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">{selectedEvent.note || text(language, { en: "No detail yet.", ja: "詳細はまだありません。" })}</p>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {loading ? (
           <div className="px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "Loading events...", ja: "イベントを読み込み中..." })}</div>
@@ -547,7 +572,7 @@ function EventsTab() {
 
                   return (
                     <Fragment key={event.id}>
-                    <tr className="transition-colors hover:bg-muted/40">
+                    <tr onClick={() => setSelectedEvent(event)} className="cursor-pointer transition-colors hover:bg-muted/40">
                       <td className="px-4 py-3 font-medium text-foreground">{event.company_name ?? "-"}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -565,7 +590,10 @@ function EventsTab() {
                           {hasCandidates && (
                             <button
                               type="button"
-                              onClick={() => toggleExpanded(event.id)}
+                              onClick={(clickEvent) => {
+                                clickEvent.stopPropagation()
+                                toggleExpanded(event.id)
+                              }}
                               className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                               aria-label={isExpanded ? "Hide candidate dates" : "Show candidate dates"}
                             >
@@ -587,14 +615,16 @@ function EventsTab() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => handleEdit(event)}
+                            type="button"
+                            onClick={(clickEvent) => { clickEvent.stopPropagation(); handleEdit(event) }}
                             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground"
                             aria-label="Edit event"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(event.id)}
+                            type="button"
+                            onClick={(clickEvent) => { clickEvent.stopPropagation(); handleDelete(event.id) }}
                             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive"
                             aria-label="Delete event"
                           >
@@ -633,7 +663,16 @@ function EventsTab() {
               const isExpanded = expandedIds.includes(event.id)
 
               return (
-                <div key={event.id} className="rounded-xl border border-border bg-background p-3">
+                <div
+                  key={event.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedEvent(event)}
+                  onKeyDown={(keyEvent) => {
+                    if (keyEvent.key === "Enter" || keyEvent.key === " ") setSelectedEvent(event)
+                  }}
+                  className="rounded-xl border border-border bg-background p-3 hover:bg-muted/40"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
                       <p className="font-medium text-foreground">{event.company_name ?? "-"}</p>
@@ -643,7 +682,10 @@ function EventsTab() {
                       {hasCandidates && (
                         <button
                           type="button"
-                          onClick={() => toggleExpanded(event.id)}
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation()
+                            toggleExpanded(event.id)
+                          }}
                           className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border"
                           aria-label={isExpanded ? "Hide candidate dates" : "Show candidate dates"}
                         >
@@ -651,14 +693,22 @@ function EventsTab() {
                         </button>
                       )}
                       <button
-                        onClick={() => handleEdit(event)}
+                        type="button"
+                        onClick={(clickEvent) => {
+                          clickEvent.stopPropagation()
+                          handleEdit(event)
+                        }}
                         className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border"
                         aria-label="Edit event"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(event.id)}
+                        type="button"
+                        onClick={(clickEvent) => {
+                          clickEvent.stopPropagation()
+                          handleDelete(event.id)
+                        }}
                         className="inline-flex items-center justify-center rounded-lg bg-card p-1.5 text-muted-foreground ring-1 ring-border"
                         aria-label="Delete event"
                       >

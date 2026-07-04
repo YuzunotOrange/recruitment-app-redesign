@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { apiRequest } from "@/lib/api"
 import { formatCalendarMonth, formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
 
-type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "other"
+type EventType = "briefing" | "interview" | "test" | "deadline" | "intern" | "offer" | "other"
 
 type ApiEvent = {
   id: number
@@ -12,7 +12,9 @@ type ApiEvent = {
   title: string
   start_date: string
   end_date: string
+  start_time?: string | null
   type: EventType
+  note?: string | null
 }
 
 const DAY = 1000 * 60 * 60 * 24
@@ -25,6 +27,7 @@ const typeTone: Record<EventType, string> = {
   test: "bg-warning",
   deadline: "bg-destructive",
   intern: "bg-success",
+  offer: "bg-success",
   other: "bg-primary",
 }
 
@@ -40,6 +43,7 @@ function safeDate(value: string) {
 
 export function TimelineView() {
   const [events, setEvents] = useState<ApiEvent[]>([])
+  const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const language = useLanguagePreference()
@@ -121,7 +125,7 @@ export function TimelineView() {
           <div className="rounded-2xl border border-border bg-card px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "No timeline items yet.", ja: "タイムライン項目はまだありません。" })}</div>
         ) : (
           rows.map((event) => (
-            <div key={event.id} className="rounded-2xl border border-border bg-card p-4">
+            <button key={event.id} type="button" onClick={() => setSelectedEvent(event)} className="w-full rounded-2xl border border-border bg-card p-4 text-left">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold text-foreground">{event.title}</p>
@@ -133,7 +137,7 @@ export function TimelineView() {
                 <span className="text-muted-foreground">Schedule</span>
                 <span className="text-right text-foreground">{formatLocalizedDate(event.start_date, language)} - {formatLocalizedDate(event.end_date, language)}</span>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
@@ -142,7 +146,7 @@ export function TimelineView() {
         <div className="overflow-x-auto">
           <div style={{ minWidth: `calc(${LABEL_WIDTH} + ${totalDays * COL}px)` }}>
             <div className="flex border-b border-border bg-primary text-primary-foreground">
-              <div className="shrink-0 px-4 py-2 text-xs font-semibold" style={{ width: LABEL_WIDTH }}>
+              <div className="sticky left-0 z-30 shrink-0 bg-primary px-4 py-2 text-xs font-semibold shadow-[8px_0_16px_rgba(0,0,0,0.35)]" style={{ width: LABEL_WIDTH }}>
                 {text(language, { en: "Event / Company", ja: "イベント / 企業" })}
               </div>
               <div className="flex">
@@ -159,7 +163,7 @@ export function TimelineView() {
             </div>
 
             <div className="flex border-b border-border bg-muted/60">
-              <div className="shrink-0" style={{ width: LABEL_WIDTH }} />
+              <div className="sticky left-0 z-20 shrink-0 bg-muted/95 shadow-[8px_0_16px_rgba(0,0,0,0.25)]" style={{ width: LABEL_WIDTH }} />
               <div className="flex">
                 {days.map((day, index) => {
                   const weekend = day.getDay() === 0 || day.getDay() === 6
@@ -191,12 +195,12 @@ export function TimelineView() {
 
                 return (
                   <div key={event.id} className={`flex items-center ${index % 2 ? "bg-muted/20" : ""} hover:bg-muted/40`}>
-                    <div className="flex shrink-0 items-center gap-2 px-4 py-2.5" style={{ width: LABEL_WIDTH }}>
+                    <button type="button" onClick={() => setSelectedEvent(event)} className={`sticky left-0 z-20 flex shrink-0 items-center gap-2 px-4 py-2.5 text-left shadow-[8px_0_16px_rgba(0,0,0,0.25)] ${index % 2 ? "bg-card" : "bg-background"}`} style={{ width: LABEL_WIDTH }}>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-foreground">{event.title}</p>
                         <p className="truncate text-xs text-muted-foreground">{event.company_name ?? text(language, { en: "No company", ja: "企業なし" })}</p>
                       </div>
-                    </div>
+                    </button>
                     <div className="relative flex h-12 items-center" style={{ width: totalDays * COL }}>
                       {days.map((day, dayIndex) => {
                         const weekend = day.getDay() === 0 || day.getDay() === 6
@@ -208,13 +212,18 @@ export function TimelineView() {
                           />
                         )
                       })}
-                      <div
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEvent(event)}
+                        onKeyDown={(keyEvent) => {
+                          if (keyEvent.key === "Enter" || keyEvent.key === " ") setSelectedEvent(event)
+                        }}
                         className={`absolute flex h-6 items-center rounded-md px-2 text-[10px] font-medium text-primary-foreground shadow-sm ${typeTone[event.type]}`}
                         style={{ left: offset * COL + 2, width: Math.max(span * COL - 4, 28) }}
                         title={`${event.title} (${event.start_date} - ${event.end_date})`}
                       >
                         <span className="truncate">{event.type}</span>
-                      </div>
+                      </button>
                     </div>
                   </div>
                 )
@@ -223,6 +232,26 @@ export function TimelineView() {
           </div>
         </div>
       </div>
+
+      {selectedEvent && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Event detail</p>
+              <h3 className="mt-1 text-lg font-semibold text-foreground">{selectedEvent.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{selectedEvent.company_name ?? text(language, { en: "No company", ja: "企業未設定" })}</p>
+            </div>
+            <button type="button" onClick={() => setSelectedEvent(null)} className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground">Close</button>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div><p className="text-xs text-muted-foreground">Type</p><p className="font-medium text-foreground">{selectedEvent.type}</p></div>
+            <div><p className="text-xs text-muted-foreground">Start</p><p className="font-medium text-foreground">{formatLocalizedDate(selectedEvent.start_date, language)}</p></div>
+            <div><p className="text-xs text-muted-foreground">End</p><p className="font-medium text-foreground">{formatLocalizedDate(selectedEvent.end_date, language)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Time</p><p className="font-medium text-foreground">{selectedEvent.start_time?.slice(0, 5) ?? "-"}</p></div>
+          </div>
+          <p className="mt-4 whitespace-pre-wrap rounded-xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">{selectedEvent.note || text(language, { en: "No detail yet.", ja: "詳細はまだありません。" })}</p>
+        </div>
+      )}
     </div>
   )
 }
