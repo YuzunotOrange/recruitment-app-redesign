@@ -26,6 +26,12 @@ type ApiCompany = {
   status: CompanyStatus
   es_deadline: string | null
   note: string | null
+  strategy_rank: "S" | "A" | "B"
+  difficulty_level: number
+  fit_score: number
+  success_probability: number
+  selection_risk: "ES" | "SPI" | "Interview" | "Unknown"
+  recommended_action: string | null
   created_at: string
   updated_at: string
 }
@@ -38,6 +44,12 @@ type CompanyForm = {
   status: CompanyStatus
   es_deadline: string
   note: string
+  strategy_rank: "S" | "A" | "B"
+  difficulty_level: number
+  fit_score: number
+  success_probability: number
+  selection_risk: "ES" | "SPI" | "Interview" | "Unknown"
+  recommended_action: string
 }
 
 const emptyForm: CompanyForm = {
@@ -48,6 +60,12 @@ const emptyForm: CompanyForm = {
   status: "planned",
   es_deadline: "",
   note: "",
+  strategy_rank: "A",
+  difficulty_level: 3,
+  fit_score: 50,
+  success_probability: 50,
+  selection_risk: "Unknown",
+  recommended_action: "",
 }
 
 const industryTabs: { key: Industry | "all"; ja: string; en: string }[] = [
@@ -62,6 +80,8 @@ const industryTabs: { key: Industry | "all"; ja: string; en: string }[] = [
 const industries: Industry[] = ["maker", "finance", "consulting", "it", "other"]
 const priorities: Priority[] = ["S", "A", "B", "C"]
 const statuses = Object.keys(companyStatusMeta) as CompanyStatus[]
+const strategyRanks: Array<"S" | "A" | "B"> = ["S", "A", "B"]
+const selectionRisks: Array<"ES" | "SPI" | "Interview" | "Unknown"> = ["Unknown", "ES", "SPI", "Interview"]
 
 function toPayload(form: CompanyForm) {
   return {
@@ -72,6 +92,12 @@ function toPayload(form: CompanyForm) {
     status: form.status,
     es_deadline: form.es_deadline || null,
     note: form.note || null,
+    strategy_rank: form.strategy_rank,
+    difficulty_level: form.difficulty_level,
+    fit_score: form.fit_score,
+    success_probability: form.success_probability,
+    selection_risk: form.selection_risk,
+    recommended_action: form.recommended_action || null,
   }
 }
 
@@ -84,6 +110,12 @@ function toForm(company: ApiCompany): CompanyForm {
     status: company.status,
     es_deadline: company.es_deadline ?? "",
     note: company.note ?? "",
+    strategy_rank: company.strategy_rank ?? "A",
+    difficulty_level: company.difficulty_level ?? 3,
+    fit_score: company.fit_score ?? 50,
+    success_probability: company.success_probability ?? 50,
+    selection_risk: company.selection_risk ?? "Unknown",
+    recommended_action: company.recommended_action ?? "",
   }
 }
 
@@ -364,6 +396,61 @@ export function CompaniesView() {
             placeholder={text(language, { en: "Note", ja: "メモ" })}
             className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
           />
+          <select
+            value={form.strategy_rank}
+            onChange={(event) => setForm((current) => ({ ...current, strategy_rank: event.target.value as "S" | "A" | "B" }))}
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          >
+            {strategyRanks.map((rank) => (
+              <option key={rank} value={rank}>
+                Strategy {rank}
+              </option>
+            ))}
+          </select>
+          <input
+            value={form.difficulty_level}
+            onChange={(event) => setForm((current) => ({ ...current, difficulty_level: Number(event.target.value) }))}
+            type="number"
+            min={1}
+            max={5}
+            aria-label="Difficulty level"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          <input
+            value={form.fit_score}
+            onChange={(event) => setForm((current) => ({ ...current, fit_score: Number(event.target.value) }))}
+            type="number"
+            min={0}
+            max={100}
+            aria-label="Fit score"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          <input
+            value={form.success_probability}
+            onChange={(event) => setForm((current) => ({ ...current, success_probability: Number(event.target.value) }))}
+            type="number"
+            min={0}
+            max={100}
+            aria-label="Success probability"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          <select
+            value={form.selection_risk}
+            onChange={(event) => setForm((current) => ({ ...current, selection_risk: event.target.value as "ES" | "SPI" | "Interview" | "Unknown" }))}
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          >
+            {selectionRisks.map((risk) => (
+              <option key={risk} value={risk}>
+                Risk {risk}
+              </option>
+            ))}
+          </select>
+          <input
+            value={form.recommended_action}
+            onChange={(event) => setForm((current) => ({ ...current, recommended_action: event.target.value }))}
+            placeholder="Recommended action"
+            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
+          />
           <div className="flex gap-2 lg:col-span-1">
             <button
               type="submit"
@@ -410,7 +497,7 @@ export function CompaniesView() {
               return (
                 <div key={company.id} className="rounded-xl border border-border bg-background/60 p-4">
                   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-base font-semibold text-foreground">{company.name}</p><p className="mt-1 text-xs text-muted-foreground">{text(language, industryMeta[company.industry])}</p></div><PriorityBadge priority={company.priority} /></div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge tone={statusMeta.tone}>{statusMeta.ja}</StatusBadge><Stars count={company.importance} /></div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge tone={statusMeta.tone}>{statusMeta.ja}</StatusBadge><Stars count={company.importance} /><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Rank {company.strategy_rank}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{company.success_probability}%</span></div>
                   <div className="mt-3 grid gap-2 text-sm"><div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">ES deadline</span>{company.es_deadline ? (<span className={dueSoon ? "cyber-blink font-medium text-destructive" : "text-foreground"}>{formatLocalizedDate(company.es_deadline, language)}</span>) : (<span className="text-muted-foreground">-</span>)}</div>{company.note && <p className="text-muted-foreground">{company.note}</p>}</div>
                   <div className="mt-4 flex gap-2"><select value={company.status} onChange={(event) => handleStatusChange(company, event.target.value as CompanyStatus)} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">{statuses.map((status) => (<option key={status} value={status}>{companyStatusMeta[status].en}</option>))}</select><button onClick={() => handleEdit(company)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground" aria-label="Edit company"><Pencil className="h-4 w-4" /></button><button onClick={() => handleDelete(company.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive" aria-label="Delete company"><Trash2 className="h-4 w-4" /></button></div>
                 </div>
@@ -418,7 +505,7 @@ export function CompaniesView() {
             })}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1180px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
                   <th className="px-4 py-3 font-medium">{text(language, { en: "Company", ja: "企業" })}</th>
@@ -428,6 +515,8 @@ export function CompaniesView() {
                   <th className="px-4 py-3 font-medium">{text(language, { en: "Status", ja: "ステータス" })}</th>
                   <th className="px-4 py-3 font-medium">{text(language, { en: "Next event", ja: "次の予定" })}</th>
                   <th className="px-4 py-3 font-medium">{text(language, { en: "ES deadline", ja: "ES締切" })}</th>
+                  <th className="px-4 py-3 font-medium">Strategy</th>
+                  <th className="px-4 py-3 font-medium">Risk</th>
                   <th className="px-4 py-3 font-medium">{text(language, { en: "Note", ja: "メモ" })}</th>
                   <th className="px-4 py-3 font-medium">{text(language, { en: "Actions", ja: "操作" })}</th>
                 </tr>
@@ -478,6 +567,13 @@ export function CompaniesView() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Rank {company.strategy_rank}</span>
+                          <p className="text-xs text-muted-foreground">Fit {company.fit_score} / Win {company.success_probability}%</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{company.selection_risk}</td>
                       <td className="max-w-[200px] truncate px-4 py-3 text-muted-foreground" title={company.note ?? undefined}>
                         {company.note ?? "-"}
                       </td>

@@ -9,17 +9,19 @@ import {
   LayoutDashboard,
   ListTodo,
   Settings,
+  Target,
 } from "lucide-react"
 import { copy, secondaryText, text, useLanguagePreference } from "@/lib/language"
 import { cn } from "@/lib/utils"
 
-export type ViewKey = "dashboard" | "companies" | "events" | "tasks" | "timeline" | "calendar" | "settings"
+export type ViewKey = "dashboard" | "companies" | "events" | "tasks" | "strategy" | "timeline" | "calendar" | "settings"
 
 const nav: { key: ViewKey; en: string; ja: string; icon: React.ElementType }[] = [
   { key: "dashboard", ...copy.dashboard, icon: LayoutDashboard },
   { key: "companies", ...copy.companies, icon: Building2 },
   { key: "events", ...copy.events, icon: CalendarClock },
   { key: "tasks", en: "Tasks", ja: "タスク", icon: ListTodo },
+  { key: "strategy", en: "Strategy", ja: "戦略", icon: Target },
   { key: "timeline", ...copy.timeline, icon: GanttChartSquare },
   { key: "calendar", ...copy.calendar, icon: CalendarDays },
   { key: "settings", ...copy.settings, icon: Settings },

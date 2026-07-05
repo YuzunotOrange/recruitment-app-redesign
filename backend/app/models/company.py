@@ -18,6 +18,12 @@ class Company(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="planned")
     es_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    strategy_rank: Mapped[str] = mapped_column(String(1), nullable=False, default="A")
+    difficulty_level: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    fit_score: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    success_probability: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    selection_risk: Mapped[str] = mapped_column(String(20), nullable=False, default="Unknown")
+    recommended_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

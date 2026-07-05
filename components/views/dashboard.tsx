@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Sparkles,
+  Target,
   TrendingUp,
   Trophy,
   X,
@@ -225,6 +226,23 @@ function IndustryDonut({
 
 function proseText(language: LanguageMode, value: { en: string; ja: string }) {
   return language === "ja-en" ? value.ja : text(language, value)
+}
+
+type StrategySummary = {
+  ratios: Partial<Record<"S" | "A" | "B", number>>
+  metrics: {
+    es_rejected: number
+    spi_rejected: number
+    interviews: number
+    offers: number
+    total_companies: number
+  }
+  recommended_actions: Array<{
+    title: string
+    reason: string
+    action: string
+    urgency: string
+  }>
 }
 
 function eventTimeLabel(event: ApiEvent) {
@@ -712,6 +730,7 @@ function ProgressScoreCard({
 
 export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void }) {
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary)
+  const [strategy, setStrategy] = useState<StrategySummary | null>(null)
   const [companies, setCompanies] = useState<ApiCompany[]>([])
   const [events, setEvents] = useState<ApiEvent[]>([])
   const [activeDetail, setActiveDetail] = useState<DetailKey | null>(null)
@@ -732,6 +751,11 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       setSummary(summaryData)
       setCompanies(companyData)
       setEvents(eventData)
+      try {
+        setStrategy(await apiRequest<StrategySummary>("/strategy"))
+      } catch {
+        setStrategy(null)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard.")
     } finally {
@@ -872,6 +896,13 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     () => buildActionSuggestions({ summary, progressScore, companies, events }),
     [companies, events, progressScore, summary],
   )
+  const strategyIssue = useMemo(() => {
+    if (!strategy) return "Calculating"
+    if (strategy.metrics.spi_rejected >= 2) return "SPI"
+    if (strategy.metrics.es_rejected >= 2) return "ES"
+    if (strategy.metrics.interviews < 3) return "Interview volume"
+    return "Balanced"
+  }, [strategy])
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
   const statusCounts = summary.company_status_counts
   const failedCount = (statusCounts.es_rejected ?? 0) + (statusCounts.spi_rejected ?? 0)
@@ -944,6 +975,39 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
           {error}
         </div>
       )}
+
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+              <Target className="h-4 w-4" />
+              <span>Application Strategy</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-foreground">応募戦略サマリー</h3>
+            <p className="mt-1 text-sm text-muted-foreground">S/A/Bバランスと選考落ち傾向から次の打ち手を確認します。</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate("strategy")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
+            Strategyへ
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          {(["S", "A", "B"] as const).map((rank) => (
+            <div key={rank} className="rounded-xl border border-border bg-background/70 p-4">
+              <p className="text-xs text-muted-foreground">Rank {rank}</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{strategy?.ratios[rank] ?? 0}%</p>
+            </div>
+          ))}
+          <div className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs text-muted-foreground">最大課題</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{strategyIssue}</p>
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

@@ -1,0 +1,164 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.dependencies.auth import get_current_user
+from app.models.company import Company
+from app.models.user import User
+from app.schemas.strategy import StrategyMetrics, StrategyRankBucket, StrategyRecommendedAction, StrategySummary
+
+
+router = APIRouter(prefix="/strategy", tags=["strategy"])
+
+
+def clamp(value: int, minimum: int = 0, maximum: int = 100) -> int:
+    return max(minimum, min(maximum, value))
+
+
+def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | None]:
+    priority_bonus = {"S": 8, "A": 10, "B": 6, "C": 0}.get(company.priority, 0)
+    probability = company.fit_score + (company.importance * 5) + priority_bonus - (company.difficulty_level * 7)
+    risk = "Unknown"
+    action: str | None = None
+
+    if company.status == "spi_rejected":
+        probability -= 30
+        risk = "SPI"
+        action = "Prioritize SPI practice and review one weak area every day."
+    elif company.status == "es_rejected":
+        probability -= 25
+        risk = "ES"
+        action = "Review company-specific ES customization and strengthen motivation details."
+    elif company.status == "interview":
+        probability += 20
+        risk = "Interview"
+        action = "Prepare interview stories, expected questions, and reverse questions."
+    elif company.status == "offer":
+        probability = 95
+        action = "Compare offer decision criteria and collect missing decision information."
+
+    probability = clamp(probability)
+
+    if company.difficulty_level == 5:
+        rank = "S"
+    elif 3 <= company.difficulty_level <= 4 and company.fit_score >= 60:
+        rank = "A"
+    elif 1 <= company.difficulty_level <= 3 and probability >= 50:
+        rank = "B"
+    else:
+        rank = "A"
+
+    if action is None:
+        if rank == "S":
+            action = "Move ES and interview preparation earlier for this high-difficulty company."
+        elif rank == "A":
+            action = "Clarify the next selection step and required submissions."
+        else:
+            action = "Move this company forward to increase interview opportunities."
+
+    return probability, rank, risk, action
+
+
+def build_strategy_summary(companies: list[Company]) -> StrategySummary:
+    ranks = ["S", "A", "B"]
+    total = len(companies)
+    buckets: dict[str, StrategyRankBucket] = {}
+    counts: dict[str, int] = {}
+    ratios: dict[str, float] = {}
+
+    for rank in ranks:
+        ranked_companies = [company for company in companies if company.strategy_rank == rank]
+        count = len(ranked_companies)
+        counts[rank] = count
+        ratios[rank] = round((count / total) * 100, 1) if total else 0
+        buckets[rank] = StrategyRankBucket(rank=rank, count=count, ratio=ratios[rank], companies=ranked_companies)
+
+    es_rejected = sum(1 for company in companies if company.status == "es_rejected")
+    spi_rejected = sum(1 for company in companies if company.status == "spi_rejected")
+    interviews = sum(1 for company in companies if company.status == "interview")
+    offers = sum(1 for company in companies if company.status == "offer")
+
+    actions: list[StrategyRecommendedAction] = []
+    if spi_rejected >= 2:
+        actions.append(
+            StrategyRecommendedAction(
+                title="Prioritize SPI practice",
+                reason=f"{spi_rejected} companies were rejected at SPI.",
+                action="Prioritize SPI practice.",
+                urgency="high",
+            )
+        )
+    if es_rejected >= 2:
+        actions.append(
+            StrategyRecommendedAction(
+                title="Review ES customization",
+                reason=f"{es_rejected} companies were rejected at ES.",
+                action="Review company-specific ES customization.",
+                urgency="high",
+            )
+        )
+    if interviews < 3:
+        actions.append(
+            StrategyRecommendedAction(
+                title="Increase interview opportunities",
+                reason=f"Only {interviews} companies are currently in interview.",
+                action="Add A/B rank companies to increase interview opportunities.",
+                urgency="medium",
+            )
+        )
+
+    for company in sorted(companies, key=lambda item: item.success_probability)[:3]:
+        if company.recommended_action:
+            actions.append(
+                StrategyRecommendedAction(
+                    title=f"Next action for {company.name}",
+                    reason=f"Success probability {company.success_probability}% / risk {company.selection_risk}",
+                    action=company.recommended_action,
+                    urgency="high" if company.success_probability < 35 else "medium",
+                    company_id=company.id,
+                    company_name=company.name,
+                )
+            )
+
+    return StrategySummary(
+        buckets=buckets,
+        counts=counts,
+        ratios=ratios,
+        metrics=StrategyMetrics(
+            total_companies=total,
+            es_rejected=es_rejected,
+            spi_rejected=spi_rejected,
+            interviews=interviews,
+            offers=offers,
+        ),
+        recommended_actions=actions[:6],
+    )
+
+
+@router.get("", response_model=StrategySummary)
+def read_strategy(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StrategySummary:
+    stmt = select(Company).where(Company.user_id == current_user.id).order_by(Company.created_at.desc(), Company.id.desc())
+    companies = list(db.scalars(stmt).all())
+    return build_strategy_summary(companies)
+
+
+@router.post("/recalculate", response_model=StrategySummary)
+def recalculate_strategy(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> StrategySummary:
+    companies = list(db.scalars(select(Company).where(Company.user_id == current_user.id)).all())
+    for company in companies:
+        probability, rank, risk, action = calculate_company_strategy(company)
+        company.success_probability = probability
+        company.strategy_rank = rank
+        company.selection_risk = risk
+        company.recommended_action = action
+    db.commit()
+    for company in companies:
+        db.refresh(company)
+    return build_strategy_summary(companies)

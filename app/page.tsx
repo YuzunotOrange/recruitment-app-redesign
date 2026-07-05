@@ -9,6 +9,7 @@ import { Dashboard } from "@/components/views/dashboard"
 import { CompaniesView } from "@/components/views/companies-view"
 import { EventsView } from "@/components/views/events-view"
 import { TasksView } from "@/components/views/tasks-view"
+import { StrategyView } from "@/components/views/strategy-view"
 import { TimelineView } from "@/components/views/timeline-view"
 import { CalendarView } from "@/components/views/calendar-view"
 import { SettingsView } from "@/components/views/settings-view"
@@ -20,6 +21,7 @@ const titles: Record<ViewKey, { en: string; ja: string }> = {
   companies: copy.companies,
   events: copy.events,
   tasks: { en: "Tasks", ja: "タスク" },
+  strategy: { en: "Strategy", ja: "応募戦略" },
   timeline: copy.timeline,
   calendar: copy.calendar,
   settings: copy.settings,
@@ -51,6 +53,7 @@ export default function Page() {
             {view === "companies" && <CompaniesView />}
             {view === "events" && <EventsView />}
             {view === "tasks" && <TasksView />}
+            {view === "strategy" && <StrategyView />}
             {view === "timeline" && <TimelineView />}
             {view === "calendar" && <CalendarView />}
             {view === "settings" && <SettingsView />}

@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Industry = Literal["maker", "finance", "consulting", "it", "other"]
 Priority = Literal["S", "A", "B", "C"]
+StrategyRank = Literal["S", "A", "B"]
+SelectionRisk = Literal["ES", "SPI", "Interview", "Unknown"]
 CompanyStatus = Literal[
     "planned",
     "es_submitted",
@@ -25,6 +27,12 @@ class CompanyBase(BaseModel):
     status: CompanyStatus = "planned"
     es_deadline: date | None = None
     note: str | None = None
+    strategy_rank: StrategyRank = "A"
+    difficulty_level: int = Field(default=3, ge=1, le=5)
+    fit_score: int = Field(default=50, ge=0, le=100)
+    success_probability: int = Field(default=50, ge=0, le=100)
+    selection_risk: SelectionRisk = "Unknown"
+    recommended_action: str | None = None
 
 
 class CompanyCreate(CompanyBase):
@@ -39,6 +47,12 @@ class CompanyUpdate(BaseModel):
     status: CompanyStatus | None = None
     es_deadline: date | None = None
     note: str | None = None
+    strategy_rank: StrategyRank | None = None
+    difficulty_level: int | None = Field(default=None, ge=1, le=5)
+    fit_score: int | None = Field(default=None, ge=0, le=100)
+    success_probability: int | None = Field(default=None, ge=0, le=100)
+    selection_risk: SelectionRisk | None = None
+    recommended_action: str | None = None
 
 
 class CompanyRead(CompanyBase):

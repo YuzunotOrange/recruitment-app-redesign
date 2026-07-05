@@ -46,8 +46,23 @@ def create_event(client: TestClient, headers: dict[str, str], **overrides) -> di
 
 
 def test_company_crud(client: TestClient, auth_headers: dict[str, str]):
-    created = create_company(client, auth_headers)
+    created = create_company(
+        client,
+        auth_headers,
+        strategy_rank="S",
+        difficulty_level=5,
+        fit_score=72,
+        success_probability=64,
+        selection_risk="Interview",
+        recommended_action="Prepare interview stories.",
+    )
     company_id = created["id"]
+    assert created["strategy_rank"] == "S"
+    assert created["difficulty_level"] == 5
+    assert created["fit_score"] == 72
+    assert created["success_probability"] == 64
+    assert created["selection_risk"] == "Interview"
+    assert created["recommended_action"] == "Prepare interview stories."
 
     listed = client.get("/companies", headers=auth_headers)
     assert listed.status_code == 200
@@ -56,15 +71,37 @@ def test_company_crud(client: TestClient, auth_headers: dict[str, str]):
     updated = client.put(
         f"/companies/{company_id}",
         headers=auth_headers,
-        json={"name": "Updated Corp", "status": "es_submitted"},
+        json={"name": "Updated Corp", "status": "es_submitted", "fit_score": 80},
     )
     assert updated.status_code == 200
     assert updated.json()["name"] == "Updated Corp"
     assert updated.json()["status"] == "es_submitted"
+    assert updated.json()["fit_score"] == 80
 
     deleted = client.delete(f"/companies/{company_id}", headers=auth_headers)
     assert deleted.status_code == 204
     assert client.get(f"/companies/{company_id}", headers=auth_headers).status_code == 404
+
+
+def test_strategy_summary_and_recalculate(client: TestClient, auth_headers: dict[str, str]):
+    create_company(client, auth_headers, name="SPI Corp", status="spi_rejected", difficulty_level=4, fit_score=55)
+    create_company(client, auth_headers, name="ES Corp", status="es_rejected", difficulty_level=3, fit_score=70)
+    create_company(client, auth_headers, name="Interview Corp", status="interview", difficulty_level=2, fit_score=80)
+    create_company(client, auth_headers, name="Offer Corp", status="offer", difficulty_level=5, fit_score=90)
+
+    recalculated = client.post("/strategy/recalculate", headers=auth_headers)
+    assert recalculated.status_code == 200
+    data = recalculated.json()
+    assert data["metrics"]["spi_rejected"] == 1
+    assert data["metrics"]["es_rejected"] == 1
+    assert data["metrics"]["interviews"] == 1
+    assert data["metrics"]["offers"] == 1
+    assert data["counts"]["S"] >= 1
+    assert any(action["action"] == "Add A/B rank companies to increase interview opportunities." for action in data["recommended_actions"])
+
+    summary = client.get("/strategy", headers=auth_headers)
+    assert summary.status_code == 200
+    assert summary.json()["metrics"]["total_companies"] == 4
 
 
 def test_event_crud_and_authenticated_owner(client: TestClient, auth_headers: dict[str, str]):
