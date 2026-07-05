@@ -1,13 +1,28 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertTriangle, BarChart3, BrainCircuit, RefreshCw, Save, ShieldAlert, Target, Trophy, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import {
+  AlertTriangle,
+  BarChart3,
+  BrainCircuit,
+  Check,
+  CircleHelp,
+  Edit3,
+  RefreshCw,
+  Save,
+  ShieldAlert,
+  Target,
+  Trophy,
+  X,
+  XCircle,
+} from "lucide-react"
 import { apiRequest } from "@/lib/api"
-import { companyStatusMeta, type CompanyStatus, type Industry, type Priority } from "@/lib/data"
+import { companyStatusMeta, industryMeta, type CompanyStatus, type Industry, type Priority } from "@/lib/data"
 import { StatusBadge } from "@/components/status-badge"
 
 type StrategyRank = "S" | "A" | "B"
 type SelectionRisk = "ES" | "SPI" | "Interview" | "Unknown"
+type StrategyPosition = "Reach" | "Core" | "Safe" | "Hold"
 
 type StrategyCompany = {
   id: number
@@ -16,6 +31,7 @@ type StrategyCompany = {
   priority: Priority
   importance: number
   status: CompanyStatus
+  es_deadline: string | null
   strategy_rank: StrategyRank
   difficulty_level: number
   fit_score: number
@@ -56,10 +72,24 @@ type StrategySummary = {
   recommended_actions: StrategyAction[]
 }
 
+type StrategyMemoForm = {
+  strategy_position: StrategyPosition
+  reason: string
+  next_action: string
+  personal_notes: string
+}
+
 const rankTone: Record<StrategyRank, string> = {
   S: "border-destructive/30 bg-destructive/10 text-destructive",
   A: "border-warning/30 bg-warning/15 text-warning-foreground",
   B: "border-accent/30 bg-accent/10 text-accent",
+}
+
+const positionTone: Record<StrategyPosition, string> = {
+  Reach: "border-fuchsia-400/40 bg-fuchsia-500/10 text-fuchsia-200",
+  Core: "border-cyan-400/40 bg-cyan-500/10 text-cyan-200",
+  Safe: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200",
+  Hold: "border-zinc-400/40 bg-zinc-500/10 text-zinc-200",
 }
 
 const urgencyTone: Record<string, string> = {
@@ -68,166 +98,7 @@ const urgencyTone: Record<string, string> = {
   low: "bg-success/10 text-success ring-success/20",
 }
 
-const strategyRanks: StrategyRank[] = ["S", "A", "B"]
-const selectionRisks: SelectionRisk[] = ["Unknown", "ES", "SPI", "Interview"]
-
-type StrategyMemoForm = {
-  strategy_rank: StrategyRank
-  difficulty_level: number
-  fit_score: number
-  success_probability: number
-  selection_risk: SelectionRisk
-  recommended_action: string
-  application_reason: string
-  desired_work: string
-  company_appeal: string
-  concern: string
-  user_strategy_note: string
-}
-
-const memoLabels = {
-  application_reason: "応募したい理由",
-  desired_work: "この企業でやりたい仕事",
-  company_appeal: "この企業の魅力",
-  concern: "気になる点・不安",
-} as const
-
-function readMemoBlock(source: string | null, label: string) {
-  if (!source) return ""
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const match = source.match(new RegExp(`\\[${escaped}\\]\\n([\\s\\S]*?)(?=\\n\\n\\[[^\\]]+\\]|$)`))
-  return match?.[1]?.trim() ?? ""
-}
-
-function writeMemoBlocks(form: StrategyMemoForm) {
-  return [
-    `[${memoLabels.application_reason}]\n${form.application_reason.trim()}`,
-    `[${memoLabels.desired_work}]\n${form.desired_work.trim()}`,
-    `[${memoLabels.company_appeal}]\n${form.company_appeal.trim()}`,
-    `[${memoLabels.concern}]\n${form.concern.trim()}`,
-  ].join("\n\n")
-}
-
-function toMemoForm(company: StrategyCompany): StrategyMemoForm {
-  return {
-    strategy_rank: company.strategy_rank,
-    difficulty_level: company.difficulty_level,
-    fit_score: company.fit_score,
-    success_probability: company.success_probability,
-    selection_risk: company.selection_risk,
-    recommended_action: company.recommended_action ?? "",
-    application_reason: readMemoBlock(company.strategy_reason, memoLabels.application_reason) || (company.strategy_reason ?? ""),
-    desired_work: readMemoBlock(company.strategy_reason, memoLabels.desired_work),
-    company_appeal: readMemoBlock(company.strategy_reason, memoLabels.company_appeal),
-    concern: readMemoBlock(company.strategy_reason, memoLabels.concern),
-    user_strategy_note: company.user_strategy_note ?? "",
-  }
-}
-
-function HintBox({ examples, points }: { examples: string[]; points: string[] }) {
-  return (
-    <div className="mt-2 rounded-lg border border-accent/25 bg-accent/10 p-3 text-xs text-muted-foreground">
-      <p className="font-semibold text-foreground">入力例</p>
-      <ul className="mt-1 list-disc space-y-1 pl-4">
-        {examples.map((example) => <li key={example}>{example}</li>)}
-      </ul>
-      <p className="mt-3 font-semibold text-foreground">考えるポイント</p>
-      <ul className="mt-1 list-disc space-y-1 pl-4">
-        {points.map((point) => <li key={point}>{point}</li>)}
-      </ul>
-    </div>
-  )
-}
-
-function GuidedTextarea({
-  title,
-  description,
-  value,
-  placeholder,
-  examples,
-  points,
-  onChange,
-}: {
-  title: string
-  description: string
-  value: string
-  placeholder: string
-  examples: string[]
-  points: string[]
-  onChange: (value: string) => void
-}) {
-  const [showHint, setShowHint] = useState(false)
-  return (
-    <div className="rounded-xl border border-border bg-background/60 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <label className="text-sm font-semibold text-foreground">{title}</label>
-          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowHint((current) => !current)}
-          className="shrink-0 rounded-lg border border-accent/30 bg-accent/10 px-2 py-1 text-xs font-medium text-accent hover:bg-accent/15"
-        >
-          💡 AIヒント
-        </button>
-      </div>
-      {showHint && <HintBox examples={examples} points={points} />}
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        rows={4}
-        className="mt-3 min-h-28 w-full resize-y rounded-lg border border-border bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
-      />
-    </div>
-  )
-}
-
-function GuidedSelect<T extends string>({
-  title,
-  description,
-  value,
-  options,
-  examples,
-  points,
-  onChange,
-}: {
-  title: string
-  description: string
-  value: T
-  options: Array<{ value: T; label: string }>
-  examples: string[]
-  points: string[]
-  onChange: (value: T) => void
-}) {
-  const [showHint, setShowHint] = useState(false)
-  return (
-    <div className="rounded-xl border border-border bg-background/60 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <label className="text-sm font-semibold text-foreground">{title}</label>
-          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowHint((current) => !current)}
-          className="shrink-0 rounded-lg border border-accent/30 bg-accent/10 px-2 py-1 text-xs font-medium text-accent hover:bg-accent/15"
-        >
-          💡 AIヒント
-        </button>
-      </div>
-      {showHint && <HintBox examples={examples} points={points} />}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value as T)}
-        className="mt-3 min-h-11 w-full rounded-lg border border-border bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-      >
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-    </div>
-  )
-}
+const strategyPositions: StrategyPosition[] = ["Reach", "Core", "Safe", "Hold"]
 
 function emptySummary(): StrategySummary {
   return {
@@ -241,6 +112,192 @@ function emptySummary(): StrategySummary {
     metrics: { total_companies: 0, es_rejected: 0, spi_rejected: 0, interviews: 0, offers: 0 },
     recommended_actions: [],
   }
+}
+
+function readMemoBlock(source: string | null, label: string) {
+  if (!source) return ""
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const match = source.match(new RegExp(`\\[${escaped}\\]\\n([\\s\\S]*?)(?=\\n\\n\\[[^\\]]+\\]|$)`))
+  return match?.[1]?.trim() ?? ""
+}
+
+function writeUserStrategyNote(form: StrategyMemoForm) {
+  return [
+    `[Strategy Position]\n${form.strategy_position}`,
+    `[Reason]\n${form.reason.trim()}`,
+    `[Next Action]\n${form.next_action.trim()}`,
+    `[Personal Notes]\n${form.personal_notes.trim()}`,
+  ].join("\n\n")
+}
+
+function aiRecommendation(company: StrategyCompany): StrategyPosition {
+  if (company.status === "declined" || company.success_probability < 30) return "Hold"
+  if (company.strategy_rank === "S") return "Reach"
+  if (company.strategy_rank === "A") return "Core"
+  return "Safe"
+}
+
+function toMemoForm(company: StrategyCompany): StrategyMemoForm {
+  const storedPosition = readMemoBlock(company.user_strategy_note, "Strategy Position") as StrategyPosition
+  const storedReason = readMemoBlock(company.user_strategy_note, "Reason")
+  const storedNextAction = readMemoBlock(company.user_strategy_note, "Next Action")
+  const personalNotesBlock = readMemoBlock(company.user_strategy_note, "Personal Notes")
+  const hasStructuredNote = Boolean(storedPosition || storedReason || storedNextAction || personalNotesBlock)
+
+  return {
+    strategy_position: strategyPositions.includes(storedPosition) ? storedPosition : aiRecommendation(company),
+    reason: storedReason || (company.strategy_reason ?? ""),
+    next_action: storedNextAction || (company.recommended_action ?? ""),
+    personal_notes: hasStructuredNote ? personalNotesBlock : company.user_strategy_note ?? "",
+  }
+}
+
+function formatDate(dateIso: string | null) {
+  if (!dateIso) return "-"
+  const [year, month, day] = dateIso.split("-").map(Number)
+  if (!year || !month || !day) return dateIso
+  return new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(year, month - 1, day))
+}
+
+function difficultyStars(level: number) {
+  const safeLevel = Math.max(1, Math.min(5, level))
+  return `${"★".repeat(safeLevel)}${"☆".repeat(5 - safeLevel)}`
+}
+
+function interviewStatus(status: CompanyStatus) {
+  if (status === "interview") return "Interview active"
+  if (status === "offer") return "Offer reached"
+  if (status === "es_rejected") return "Stopped at ES"
+  if (status === "spi_rejected") return "Stopped at SPI"
+  if (status === "declined") return "Declined"
+  return "Not started"
+}
+
+function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative inline-flex">
+      <button
+        type="button"
+        aria-label="Show explanation"
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground"
+      >
+        ?
+      </button>
+      {open && (
+        <div className="absolute right-0 top-9 z-20 w-64 rounded-xl border border-border bg-popover p-3 text-xs leading-relaxed text-popover-foreground shadow-lg">
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SectionHeader({
+  title,
+  description,
+  tone,
+}: {
+  title: string
+  description: string
+  tone: "readonly" | "ai" | "user"
+}) {
+  const toneClass = {
+    readonly: "text-blue-300",
+    ai: "text-purple-300",
+    user: "text-pink-300",
+  }[tone]
+
+  return (
+    <div>
+      <h4 className={`text-base font-semibold ${toneClass}`}>{title}</h4>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    </div>
+  )
+}
+
+function ReadOnlyItem({
+  title,
+  value,
+  description,
+  children,
+  why,
+}: {
+  title: string
+  value?: string
+  description: string
+  children?: ReactNode
+  why?: string
+}) {
+  return (
+    <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-300">Read Only</p>
+          <p className="mt-2 text-sm font-semibold text-foreground">{title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+        {why && <InfoTip text={why} />}
+      </div>
+      <div className="mt-3 text-sm font-semibold text-foreground">{children ?? value}</div>
+    </div>
+  )
+}
+
+function AiItem({
+  title,
+  value,
+  description,
+  children,
+  why,
+}: {
+  title: string
+  value?: string
+  description: string
+  children?: ReactNode
+  why: string
+}) {
+  return (
+    <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-purple-300">AIが分析</p>
+          <p className="mt-2 text-sm font-semibold text-foreground">{title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+        <InfoTip text={why} />
+      </div>
+      <div className="mt-3 text-sm font-semibold text-foreground">{children ?? value}</div>
+    </div>
+  )
+}
+
+function UserField({
+  title,
+  description,
+  why,
+  children,
+}: {
+  title: string
+  description: string
+  why: string
+  children: ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-pink-500/30 bg-pink-500/10 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-pink-300">あなたが入力</p>
+          <label className="mt-2 block text-sm font-semibold text-foreground">{title}</label>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+        <InfoTip text={why} />
+      </div>
+      <div className="mt-3">{children}</div>
+    </div>
+  )
 }
 
 function StrategyMeter({ label, value }: { label: string; value: number }) {
@@ -259,17 +316,19 @@ function StrategyMeter({ label, value }: { label: string; value: number }) {
 
 function CompanyStrategyCard({ company, onSelect }: { company: StrategyCompany; onSelect: (company: StrategyCompany) => void }) {
   const statusMeta = companyStatusMeta[company.status]
+  const recommendation = aiRecommendation(company)
+
   return (
     <button type="button" onClick={() => onSelect(company)} className="w-full rounded-xl border border-border bg-background/70 p-4 text-left hover:bg-muted/40">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{company.name}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Difficulty {company.difficulty_level} / Fit {company.fit_score}
+            Company Rank {company.priority} / Fit {company.fit_score}
           </p>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${rankTone[company.strategy_rank]}`}>
-          {company.strategy_rank}
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[recommendation]}`}>
+          {recommendation}
         </span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -279,7 +338,7 @@ function CompanyStrategyCard({ company, onSelect }: { company: StrategyCompany; 
           {company.success_probability}%
         </span>
       </div>
-      {company.recommended_action && <p className="mt-3 text-sm text-muted-foreground">{company.recommended_action}</p>}
+      {company.recommended_action && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{company.recommended_action}</p>}
     </button>
   )
 }
@@ -334,14 +393,9 @@ export function StrategyView() {
       await apiRequest<StrategyCompany>(`/companies/${selectedCompany.id}`, {
         method: "PUT",
         body: JSON.stringify({
-          strategy_rank: memoForm.strategy_rank,
-          difficulty_level: memoForm.difficulty_level,
-          fit_score: memoForm.fit_score,
-          success_probability: memoForm.success_probability,
-          selection_risk: memoForm.selection_risk,
-          recommended_action: memoForm.recommended_action || null,
-          strategy_reason: writeMemoBlocks(memoForm),
-          user_strategy_note: memoForm.user_strategy_note || null,
+          recommended_action: memoForm.next_action || null,
+          strategy_reason: memoForm.reason || null,
+          user_strategy_note: writeUserStrategyNote(memoForm),
         }),
       })
       const nextSummary = await apiRequest<StrategySummary>("/strategy")
@@ -366,6 +420,8 @@ export function StrategyView() {
     if (summary.metrics.interviews < 3) return "Interview volume"
     return "Balanced"
   }, [summary])
+
+  const selectedAiRecommendation = selectedCompany ? aiRecommendation(selectedCompany) : "Core"
 
   return (
     <div className="space-y-5">
@@ -434,7 +490,7 @@ export function StrategyView() {
             {(["S", "A", "B"] as StrategyRank[]).map((rank) => (
               <div key={rank} className="rounded-2xl border border-border bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground">Rank {rank}</h3>
+                  <h3 className="font-semibold text-foreground">System Rank {rank}</h3>
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${rankTone[rank]}`}>
                     {summary.counts[rank] ?? 0} / {summary.ratios[rank] ?? 0}%
                   </span>
@@ -459,7 +515,9 @@ export function StrategyView() {
                     <span>Strategy Memo</span>
                   </div>
                   <h3 className="mt-2 text-lg font-semibold text-foreground">{selectedCompany.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">企業について考えるためのガイド付きノートです。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    AIが分析した結果を見ながら、あなた自身の応募戦略を決める画面です。
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -475,155 +533,178 @@ export function StrategyView() {
               </div>
 
               <div className="mt-4 space-y-5">
-                <div className="rounded-2xl border border-border bg-background/40 p-4">
-                  <h4 className="text-base font-semibold text-foreground">応募戦略</h4>
-                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    <GuidedSelect
-                      title="応募ランク"
-                      description="この企業をあなたはどの程度優先して受けますか？"
-                      value={memoForm.strategy_rank}
-                      options={strategyRanks.map((rank) => ({ value: rank, label: `${rank} ランク` }))}
-                      examples={["S: 第一志望級", "A: 本命候補", "B: 面接機会を増やす候補"]}
-                      points={["自分の志望度で決める", "難易度だけでなく納得度も見る", "迷ったらAにして後で見直す"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, strategy_rank: value }))}
+                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
+                  <SectionHeader
+                    title="Company Information"
+                    description="企業一覧で登録済みの基本情報です。このセクションは編集できません。"
+                    tone="readonly"
+                  />
+                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <ReadOnlyItem title="Company Rank" description="企業そのものの志望度です。" value={selectedCompany.priority} why="Company一覧で設定したS〜Cの志望度です。Strategy Positionとは別の情報です。" />
+                    <ReadOnlyItem title="Industry" description="登録済みの業界です。" value={industryMeta[selectedCompany.industry]?.en ?? selectedCompany.industry} />
+                    <ReadOnlyItem title="Current Status" description="現在の選考ステータスです。" why="企業の現在地を確認するための情報です。">
+                      <StatusBadge tone={companyStatusMeta[selectedCompany.status].tone}>{companyStatusMeta[selectedCompany.status].en}</StatusBadge>
+                    </ReadOnlyItem>
+                    <ReadOnlyItem title="ES Deadline" description="登録済みのES締切です。" value={formatDate(selectedCompany.es_deadline)} />
+                    <ReadOnlyItem title="Interview Status" description="面接フェーズの状態です。" value={interviewStatus(selectedCompany.status)} />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
+                  <SectionHeader
+                    title="AI / System Analysis"
+                    description="ステータス、難易度、相性、通過可能性からシステムが自動分析します。ここは編集しません。"
+                    tone="ai"
+                  />
+                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <AiItem
+                      title="Selection Difficulty"
+                      description="企業の選考難易度"
+                      why="企業自体の選考難易度です。あなたの能力ではありません。"
+                    >
+                      <span className="text-lg tracking-wide text-warning">{difficultyStars(selectedCompany.difficulty_level)}</span>
+                    </AiItem>
+                    <AiItem
+                      title="Fit Score"
+                      description="研究・開発経験・志向との相性"
+                      value={`${selectedCompany.fit_score} / 100`}
+                      why="あなたの研究・開発経験や志向との相性です。"
                     />
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-xl border border-border bg-background/60 p-3">
-                        <label className="text-sm font-semibold text-foreground">難易度</label>
-                        <p className="mt-1 text-xs text-muted-foreground">選考の難しさを1〜5で記録します。</p>
-                        <input
-                          value={memoForm.difficulty_level}
-                          onChange={(event) => setMemoForm((current) => current && ({ ...current, difficulty_level: Number(event.target.value) }))}
-                          type="number"
-                          min={1}
-                          max={5}
-                          className="mt-3 min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                      <div className="rounded-xl border border-border bg-background/60 p-3">
-                        <label className="text-sm font-semibold text-foreground">相性</label>
-                        <p className="mt-1 text-xs text-muted-foreground">自分との相性を0〜100で記録します。</p>
-                        <input
-                          value={memoForm.fit_score}
-                          onChange={(event) => setMemoForm((current) => current && ({ ...current, fit_score: Number(event.target.value) }))}
-                          type="number"
-                          min={0}
-                          max={100}
-                          className="mt-3 min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                      <div className="rounded-xl border border-border bg-background/60 p-3">
-                        <label className="text-sm font-semibold text-foreground">通過見込み</label>
-                        <p className="mt-1 text-xs text-muted-foreground">現時点の成功確率を0〜100で記録します。</p>
-                        <input
-                          value={memoForm.success_probability}
-                          onChange={(event) => setMemoForm((current) => current && ({ ...current, success_probability: Number(event.target.value) }))}
-                          type="number"
-                          min={0}
-                          max={100}
-                          className="mt-3 min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
+                    <AiItem
+                      title="Current Success Probability"
+                      description="現在の選考状況から推定した通過可能性"
+                      value={`${selectedCompany.success_probability}%`}
+                      why="現在のES・SPI・面接状況から計算されます。確定値ではなく判断材料です。"
+                    />
+                    <AiItem
+                      title="Main Risk"
+                      description="現在最も対策すべき項目"
+                      value={selectedCompany.selection_risk}
+                      why="直近で落ちやすい、または準備が必要な選考項目です。"
+                    />
+                    <AiItem
+                      title="AI Recommendation"
+                      description="AI・システムが提案する応募戦略"
+                      why="企業ランク、難易度、相性、通過可能性から提案します。最終判断はあなたが行います。"
+                    >
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[selectedAiRecommendation]}`}>
+                        {selectedAiRecommendation}
+                      </span>
+                    </AiItem>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-pink-500/30 bg-pink-500/5 p-4">
+                  <SectionHeader
+                    title="Your Decision"
+                    description="AI提案ではなく、あなた自身の応募戦略を決めます。ここだけ編集できます。"
+                    tone="user"
+                  />
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                    <UserField
+                      title="Strategy Position"
+                      description="Reach（挑戦） / Core（本命） / Safe（安全） / Hold（保留）から選びます。"
+                      why="最終的にあなたが決める応募戦略です。Company Rankとは別に、応募ポートフォリオ上の位置づけを決めます。"
+                    >
+                      <select
+                        value={memoForm.strategy_position}
+                        onChange={(event) => setMemoForm((current) => current && ({ ...current, strategy_position: event.target.value as StrategyPosition }))}
+                        className="min-h-11 w-full rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-pink-500/40"
+                      >
+                        <option value="Reach">Reach（挑戦）</option>
+                        <option value="Core">Core（本命）</option>
+                        <option value="Safe">Safe（安全）</option>
+                        <option value="Hold">Hold（保留）</option>
+                      </select>
+                    </UserField>
+                    <UserField
+                      title="Reason"
+                      description="なぜこの応募戦略にするのかを書きます。"
+                      why="難易度や志望度だけでなく、自分が納得できる理由を残す場所です。"
+                    >
+                      <textarea
+                        value={memoForm.reason}
+                        onChange={(event) => setMemoForm((current) => current && ({ ...current, reason: event.target.value }))}
+                        placeholder="例：第一志望。難易度は高いが挑戦したい。"
+                        rows={4}
+                        className="min-h-28 w-full resize-y rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-pink-500/40"
+                      />
+                    </UserField>
+                    <UserField
+                      title="Next Action"
+                      description="この企業に対して次にやることを書きます。"
+                      why="応募戦略を行動に変えるための欄です。次の一手だけに絞ると管理しやすくなります。"
+                    >
+                      <textarea
+                        value={memoForm.next_action}
+                        onChange={(event) => setMemoForm((current) => current && ({ ...current, next_action: event.target.value }))}
+                        placeholder="例：SPI対策を重点的に進める"
+                        rows={4}
+                        className="min-h-28 w-full resize-y rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-pink-500/40"
+                      />
+                    </UserField>
+                    <UserField
+                      title="Personal Notes"
+                      description="説明会・OB訪問・面接で使えそうなメモを自由に残します。"
+                      why="あとで面接前に読み返すための自分用メモです。小さな気づきでも残しておくと役立ちます。"
+                    >
+                      <textarea
+                        value={memoForm.personal_notes}
+                        onChange={(event) => setMemoForm((current) => current && ({ ...current, personal_notes: event.target.value }))}
+                        placeholder={"例：OB訪問したい\n面接で研究内容を強調"}
+                        rows={5}
+                        className="min-h-32 w-full resize-y rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-pink-500/40"
+                      />
+                    </UserField>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setMemoForm((current) => current && ({ ...current, strategy_position: selectedAiRecommendation }))}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-200 hover:bg-purple-500/15"
+                      >
+                        <Check className="h-4 w-4" />
+                        Accept AI Suggestion
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMemoForm((current) => current && ({ ...current, reason: current.reason || "AI提案を確認し、自分の判断で調整する。" }))}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-2 text-sm font-medium text-pink-200 hover:bg-pink-500/15"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                        Edit Before Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMemoForm((current) => current && ({ ...current, strategy_position: "Hold", reason: current.reason || "AI提案は一度保留し、追加情報を確認してから判断する。" }))}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-500/15"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Reject Suggestion
+                      </button>
                     </div>
-                    <GuidedTextarea
-                      title="応募したい理由"
-                      description="なぜこの企業を受けたいのかを書きます。"
-                      value={memoForm.application_reason}
-                      placeholder="例：AI/DXに携わりたい、海外で働きたい、福利厚生が魅力、研究内容を活かせる"
-                      examples={["AI/DXに携わりたい", "海外で働きたい", "福利厚生が魅力", "研究内容を活かせる"]}
-                      points={["自分の価値観とつながっているか", "企業名を変えても成立する理由になっていないか", "面接で話せる具体性があるか"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, application_reason: value }))}
-                    />
-                    <GuidedTextarea
-                      title="この企業でやりたい仕事"
-                      description="入社後に挑戦したい仕事や職種を書きます。"
-                      value={memoForm.desired_work}
-                      placeholder="例：AI開発、DXコンサル、データ分析、研究開発"
-                      examples={["AI開発", "DXコンサル", "データ分析", "研究開発"]}
-                      points={["事業や職種と結びついているか", "自分の経験と接続できるか", "面接で深掘りされても説明できるか"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, desired_work: value }))}
-                    />
+                    <button
+                      type="button"
+                      onClick={saveMemo}
+                      disabled={memoSaving}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                    >
+                      <Save className="h-4 w-4" />
+                      Save Decision
+                    </button>
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-border bg-background/40 p-4">
-                  <h4 className="text-base font-semibold text-foreground">企業分析</h4>
-                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    <GuidedTextarea
-                      title="この企業の魅力"
-                      description="他社と比べて魅力に感じる点を書きます。"
-                      value={memoForm.company_appeal}
-                      placeholder="例：海外売上比率が高い、若手でも挑戦できる、DX投資が積極的"
-                      examples={["海外売上比率が高い", "若手でも挑戦できる", "DX投資が積極的"]}
-                      points={["ニュースやIRで確認できるか", "自分の志望理由につながるか", "競合他社との差分になっているか"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, company_appeal: value }))}
-                    />
-                    <GuidedTextarea
-                      title="気になる点・不安"
-                      description="選考や働き方で不安な点を書きます。"
-                      value={memoForm.concern}
-                      placeholder="例：SPIが難しい、勤務地、残業時間、倍率が高い"
-                      examples={["SPIが難しい", "勤務地", "残業時間", "倍率が高い"]}
-                      points={["調べれば解消できる不安か", "OB訪問で確認すべき内容か", "選考対策に変換できるか"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, concern: value }))}
-                    />
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <CircleHelp className="h-4 w-4 text-accent" />
+                    Why?
                   </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-background/40 p-4">
-                  <h4 className="text-base font-semibold text-foreground">選考対策</h4>
-                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    <GuidedSelect
-                      title="現状一番の課題"
-                      description="いま一番対策が必要な選考フェーズを選びます。"
-                      value={memoForm.selection_risk}
-                      options={[
-                        { value: "ES", label: "ES" },
-                        { value: "SPI", label: "SPI" },
-                        { value: "Interview", label: "面接（ケース面接・英語含む）" },
-                        { value: "Unknown", label: "不明" },
-                      ]}
-                      examples={["ES", "SPI", "面接", "ケース面接", "英語", "不明"]}
-                      points={["次に落ちる可能性が高い場所を選ぶ", "迷う場合は不明にしてメモへ残す", "ケース面接や英語は面接リスクとして管理する"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, selection_risk: value }))}
-                    />
-                    <GuidedTextarea
-                      title="次にやること"
-                      description="この企業に対して次に取る具体的な行動を書きます。"
-                      value={memoForm.recommended_action}
-                      placeholder="例：SPIを2周、OB訪問、企業研究、面接練習"
-                      examples={["SPIを2周", "OB訪問", "企業研究", "面接練習"]}
-                      points={["今日または今週できる行動にする", "具体的な完了条件を書く", "締切や面接日から逆算する"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, recommended_action: value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-background/40 p-4">
-                  <h4 className="text-base font-semibold text-foreground">自分メモ</h4>
-                  <div className="mt-3">
-                    <GuidedTextarea
-                      title="自由記述"
-                      description="説明会・面接・インターンなどで気づいたことを自由に残します。"
-                      value={memoForm.user_strategy_note}
-                      placeholder="例：説明会で社員が○○と言っていた、面接で聞かれそう、インターン参加予定"
-                      examples={["説明会で社員が○○と言っていた", "面接で聞かれそう", "インターン参加予定"]}
-                      points={["あとで面接前に読み返せる内容にする", "社員の発言や自分の感情も残す", "疑問点は次の質問候補にする"]}
-                      onChange={(value) => setMemoForm((current) => current && ({ ...current, user_strategy_note: value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={saveMemo}
-                    disabled={memoSaving}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                  >
-                    <Save className="h-4 w-4" />
-                    保存
-                  </button>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    各項目の「?」を押すと、何を意味する項目なのかを確認できます。Company Rankは企業そのものの志望度、Strategy Positionは応募戦略として完全に分けています。
+                  </p>
                 </div>
               </div>
             </section>
