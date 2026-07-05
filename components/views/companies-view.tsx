@@ -458,7 +458,7 @@ export function CompaniesView() {
           <input
             value={form.recommended_action}
             onChange={(event) => setForm((current) => ({ ...current, recommended_action: event.target.value }))}
-            placeholder="Recommended action"
+            placeholder="次にやること"
             className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
           />
           <div className="rounded-xl border border-border bg-background/60 p-3 lg:col-span-6">
@@ -467,14 +467,14 @@ export function CompaniesView() {
               <textarea
                 value={form.strategy_reason}
                 onChange={(event) => setForm((current) => ({ ...current, strategy_reason: event.target.value }))}
-                placeholder="Why this rank / risk"
+                placeholder="応募理由、企業の魅力、気になる点など"
                 rows={4}
                 className="min-h-28 resize-y rounded-lg border border-border bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
               />
               <textarea
                 value={form.user_strategy_note}
                 onChange={(event) => setForm((current) => ({ ...current, user_strategy_note: event.target.value }))}
-                placeholder="Your manual strategy note"
+                placeholder="説明会や面接で気づいたことを自由にメモ"
                 rows={4}
                 className="min-h-28 resize-y rounded-lg border border-border bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
               />
