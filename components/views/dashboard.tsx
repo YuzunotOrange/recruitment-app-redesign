@@ -230,6 +230,7 @@ function proseText(language: LanguageMode, value: { en: string; ja: string }) {
 
 type StrategySummary = {
   ratios: Partial<Record<"S" | "A" | "B", number>>
+  buckets?: Partial<Record<"S" | "A" | "B", { companies: StrategyCompanySummary[] }>>
   metrics: {
     es_rejected: number
     spi_rejected: number
@@ -243,6 +244,37 @@ type StrategySummary = {
     action: string
     urgency: string
   }>
+}
+
+type StrategyPosition = "Reach" | "Core" | "Safe" | "Hold"
+
+type StrategyCompanySummary = {
+  id: number
+  status: CompanyStatus
+  strategy_rank?: "S" | "A" | "B" | null
+  success_probability?: number | null
+  user_strategy_note?: string | null
+}
+
+const strategyPositions: StrategyPosition[] = ["Reach", "Core", "Safe", "Hold"]
+
+function readStrategyMemoBlock(source: string | null | undefined, label: string) {
+  if (!source) return ""
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const match = source.match(new RegExp(`\\[${escaped}\\]\\n([\\s\\S]*?)(?=\\n\\n\\[[^\\]]+\\]|$)`))
+  return match?.[1]?.trim() ?? ""
+}
+
+function systemStrategyPosition(company: StrategyCompanySummary): StrategyPosition {
+  if (company.status === "declined" || (company.success_probability != null && company.success_probability < 30)) return "Hold"
+  if (company.strategy_rank === "S") return "Reach"
+  if (company.strategy_rank === "B") return "Safe"
+  return "Core"
+}
+
+function strategyPositionOf(company: StrategyCompanySummary): StrategyPosition {
+  const stored = readStrategyMemoBlock(company.user_strategy_note, "Strategy Position") as StrategyPosition
+  return strategyPositions.includes(stored) ? stored : systemStrategyPosition(company)
 }
 
 function eventTimeLabel(event: ApiEvent) {
@@ -903,6 +935,22 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     if (strategy.metrics.interviews < 3) return "Interview volume"
     return "Balanced"
   }, [strategy])
+
+  const strategyPositionRatios = useMemo(() => {
+    const companies = Object.values(strategy?.buckets ?? {})
+      .flatMap((bucket) => bucket?.companies ?? [])
+      .filter((company, index, items) => items.findIndex((item) => item.id === company.id) === index)
+    const total = companies.length
+
+    return strategyPositions.reduce<Record<StrategyPosition, number>>(
+      (ratios, position) => {
+        const count = companies.filter((company) => strategyPositionOf(company) === position).length
+        ratios[position] = total ? Math.round((count / total) * 1000) / 10 : 0
+        return ratios
+      },
+      { Reach: 0, Core: 0, Safe: 0, Hold: 0 },
+    )
+  }, [strategy])
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
   const statusCounts = summary.company_status_counts
   const failedCount = (statusCounts.es_rejected ?? 0) + (statusCounts.spi_rejected ?? 0)
@@ -984,7 +1032,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
               <span>Application Strategy</span>
             </div>
             <h3 className="mt-2 text-lg font-semibold text-foreground">応募戦略サマリー</h3>
-            <p className="mt-1 text-sm text-muted-foreground">S/A/Bバランスと選考落ち傾向から次の打ち手を確認します。</p>
+            <p className="mt-1 text-sm text-muted-foreground">Strategy Positionのバランスと選考落ち傾向から次の打ち手を確認します。</p>
           </div>
           <button
             type="button"
@@ -995,11 +1043,11 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-4">
-          {(["S", "A", "B"] as const).map((rank) => (
-            <div key={rank} className="rounded-xl border border-border bg-background/70 p-4">
-              <p className="text-xs text-muted-foreground">Rank {rank}</p>
-              <p className="mt-1 text-2xl font-semibold text-foreground">{strategy?.ratios[rank] ?? 0}%</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-5">
+          {strategyPositions.map((position) => (
+            <div key={position} className="rounded-xl border border-border bg-background/70 p-4">
+              <p className="text-xs text-muted-foreground">{position}</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{strategyPositionRatios[position]}%</p>
             </div>
           ))}
           <div className="rounded-xl border border-border bg-background/70 p-4">
