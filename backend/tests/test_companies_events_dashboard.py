@@ -55,6 +55,8 @@ def test_company_crud(client: TestClient, auth_headers: dict[str, str]):
         success_probability=64,
         selection_risk="Interview",
         recommended_action="Prepare interview stories.",
+        strategy_reason="Strong fit but difficult process.",
+        user_strategy_note="Ask alumni about interview style.",
     )
     company_id = created["id"]
     assert created["strategy_rank"] == "S"
@@ -63,6 +65,8 @@ def test_company_crud(client: TestClient, auth_headers: dict[str, str]):
     assert created["success_probability"] == 64
     assert created["selection_risk"] == "Interview"
     assert created["recommended_action"] == "Prepare interview stories."
+    assert created["strategy_reason"] == "Strong fit but difficult process."
+    assert created["user_strategy_note"] == "Ask alumni about interview style."
 
     listed = client.get("/companies", headers=auth_headers)
     assert listed.status_code == 200
@@ -71,12 +75,13 @@ def test_company_crud(client: TestClient, auth_headers: dict[str, str]):
     updated = client.put(
         f"/companies/{company_id}",
         headers=auth_headers,
-        json={"name": "Updated Corp", "status": "es_submitted", "fit_score": 80},
+        json={"name": "Updated Corp", "status": "es_submitted", "fit_score": 80, "user_strategy_note": "Updated memo."},
     )
     assert updated.status_code == 200
     assert updated.json()["name"] == "Updated Corp"
     assert updated.json()["status"] == "es_submitted"
     assert updated.json()["fit_score"] == 80
+    assert updated.json()["user_strategy_note"] == "Updated memo."
 
     deleted = client.delete(f"/companies/{company_id}", headers=auth_headers)
     assert deleted.status_code == 204
@@ -98,6 +103,7 @@ def test_strategy_summary_and_recalculate(client: TestClient, auth_headers: dict
     assert data["metrics"]["offers"] == 1
     assert data["counts"]["S"] >= 1
     assert any(action["action"] == "Add A/B rank companies to increase interview opportunities." for action in data["recommended_actions"])
+    assert any(company["strategy_reason"] for bucket in data["buckets"].values() for company in bucket["companies"])
 
     summary = client.get("/strategy", headers=auth_headers)
     assert summary.status_code == 200

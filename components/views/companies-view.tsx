@@ -32,6 +32,8 @@ type ApiCompany = {
   success_probability: number
   selection_risk: "ES" | "SPI" | "Interview" | "Unknown"
   recommended_action: string | null
+  strategy_reason: string | null
+  user_strategy_note: string | null
   created_at: string
   updated_at: string
 }
@@ -50,6 +52,8 @@ type CompanyForm = {
   success_probability: number
   selection_risk: "ES" | "SPI" | "Interview" | "Unknown"
   recommended_action: string
+  strategy_reason: string
+  user_strategy_note: string
 }
 
 const emptyForm: CompanyForm = {
@@ -66,6 +70,8 @@ const emptyForm: CompanyForm = {
   success_probability: 50,
   selection_risk: "Unknown",
   recommended_action: "",
+  strategy_reason: "",
+  user_strategy_note: "",
 }
 
 const industryTabs: { key: Industry | "all"; ja: string; en: string }[] = [
@@ -98,6 +104,8 @@ function toPayload(form: CompanyForm) {
     success_probability: form.success_probability,
     selection_risk: form.selection_risk,
     recommended_action: form.recommended_action || null,
+    strategy_reason: form.strategy_reason || null,
+    user_strategy_note: form.user_strategy_note || null,
   }
 }
 
@@ -116,6 +124,8 @@ function toForm(company: ApiCompany): CompanyForm {
     success_probability: company.success_probability ?? 50,
     selection_risk: company.selection_risk ?? "Unknown",
     recommended_action: company.recommended_action ?? "",
+    strategy_reason: company.strategy_reason ?? "",
+    user_strategy_note: company.user_strategy_note ?? "",
   }
 }
 
@@ -451,6 +461,25 @@ export function CompaniesView() {
             placeholder="Recommended action"
             className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
           />
+          <div className="rounded-xl border border-border bg-background/60 p-3 lg:col-span-6">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Strategy Memo</p>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <textarea
+                value={form.strategy_reason}
+                onChange={(event) => setForm((current) => ({ ...current, strategy_reason: event.target.value }))}
+                placeholder="Why this rank / risk"
+                rows={4}
+                className="min-h-28 resize-y rounded-lg border border-border bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              />
+              <textarea
+                value={form.user_strategy_note}
+                onChange={(event) => setForm((current) => ({ ...current, user_strategy_note: event.target.value }))}
+                placeholder="Your manual strategy note"
+                rows={4}
+                className="min-h-28 resize-y rounded-lg border border-border bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
           <div className="flex gap-2 lg:col-span-1">
             <button
               type="submit"
@@ -498,7 +527,7 @@ export function CompaniesView() {
                 <div key={company.id} className="rounded-xl border border-border bg-background/60 p-4">
                   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-base font-semibold text-foreground">{company.name}</p><p className="mt-1 text-xs text-muted-foreground">{text(language, industryMeta[company.industry])}</p></div><PriorityBadge priority={company.priority} /></div>
                   <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge tone={statusMeta.tone}>{statusMeta.ja}</StatusBadge><Stars count={company.importance} /><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Rank {company.strategy_rank}</span><span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{company.success_probability}%</span></div>
-                  <div className="mt-3 grid gap-2 text-sm"><div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">ES deadline</span>{company.es_deadline ? (<span className={dueSoon ? "cyber-blink font-medium text-destructive" : "text-foreground"}>{formatLocalizedDate(company.es_deadline, language)}</span>) : (<span className="text-muted-foreground">-</span>)}</div>{company.note && <p className="text-muted-foreground">{company.note}</p>}</div>
+                  <div className="mt-3 grid gap-2 text-sm"><div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">ES deadline</span>{company.es_deadline ? (<span className={dueSoon ? "cyber-blink font-medium text-destructive" : "text-foreground"}>{formatLocalizedDate(company.es_deadline, language)}</span>) : (<span className="text-muted-foreground">-</span>)}</div><div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Risk</span><span className="text-foreground">{company.selection_risk}</span></div>{company.recommended_action && <p className="truncate text-muted-foreground">{company.recommended_action.split("\n")[0]}</p>}{company.note && <p className="text-muted-foreground">{company.note}</p>}</div>
                   <div className="mt-4 flex gap-2"><select value={company.status} onChange={(event) => handleStatusChange(company, event.target.value as CompanyStatus)} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">{statuses.map((status) => (<option key={status} value={status}>{companyStatusMeta[status].en}</option>))}</select><button onClick={() => handleEdit(company)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-foreground" aria-label="Edit company"><Pencil className="h-4 w-4" /></button><button onClick={() => handleDelete(company.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-destructive" aria-label="Delete company"><Trash2 className="h-4 w-4" /></button></div>
                 </div>
               )
@@ -573,7 +602,12 @@ export function CompaniesView() {
                           <p className="text-xs text-muted-foreground">Fit {company.fit_score} / Win {company.success_probability}%</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{company.selection_risk}</td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1">
+                          <p className="text-muted-foreground">{company.selection_risk}</p>
+                          {company.recommended_action && <p className="max-w-[220px] truncate text-xs text-muted-foreground">{company.recommended_action.split("\n")[0]}</p>}
+                        </div>
+                      </td>
                       <td className="max-w-[200px] truncate px-4 py-3 text-muted-foreground" title={company.note ?? undefined}>
                         {company.note ?? "-"}
                       </td>

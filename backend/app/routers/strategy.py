@@ -16,7 +16,7 @@ def clamp(value: int, minimum: int = 0, maximum: int = 100) -> int:
     return max(minimum, min(maximum, value))
 
 
-def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | None]:
+def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | None, str]:
     priority_bonus = {"S": 8, "A": 10, "B": 6, "C": 0}.get(company.priority, 0)
     probability = company.fit_score + (company.importance * 5) + priority_bonus - (company.difficulty_level * 7)
     risk = "Unknown"
@@ -42,12 +42,16 @@ def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | N
 
     if company.difficulty_level == 5:
         rank = "S"
+        reason = "Difficulty is 5, so this is treated as a high-challenge S rank company."
     elif 3 <= company.difficulty_level <= 4 and company.fit_score >= 60:
         rank = "A"
+        reason = "Difficulty is 3-4 and fit score is 60 or higher, so this is an A rank target."
     elif 1 <= company.difficulty_level <= 3 and probability >= 50:
         rank = "B"
+        reason = "Difficulty is 1-3 and success probability is 50 or higher, so this is a B rank opportunity."
     else:
         rank = "A"
+        reason = "Defaulted to A rank because the company needs active monitoring."
 
     if action is None:
         if rank == "S":
@@ -57,7 +61,7 @@ def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | N
         else:
             action = "Move this company forward to increase interview opportunities."
 
-    return probability, rank, risk, action
+    return probability, rank, risk, action, reason
 
 
 def build_strategy_summary(companies: list[Company]) -> StrategySummary:
@@ -153,11 +157,12 @@ def recalculate_strategy(
 ) -> StrategySummary:
     companies = list(db.scalars(select(Company).where(Company.user_id == current_user.id)).all())
     for company in companies:
-        probability, rank, risk, action = calculate_company_strategy(company)
+        probability, rank, risk, action, reason = calculate_company_strategy(company)
         company.success_probability = probability
         company.strategy_rank = rank
         company.selection_risk = risk
         company.recommended_action = action
+        company.strategy_reason = reason
     db.commit()
     for company in companies:
         db.refresh(company)

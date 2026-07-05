@@ -33,6 +33,8 @@ class CompanyBase(BaseModel):
     success_probability: int = Field(default=50, ge=0, le=100)
     selection_risk: SelectionRisk = "Unknown"
     recommended_action: str | None = None
+    strategy_reason: str | None = None
+    user_strategy_note: str | None = None
 
 
 class CompanyCreate(CompanyBase):
@@ -53,6 +55,8 @@ class CompanyUpdate(BaseModel):
     success_probability: int | None = Field(default=None, ge=0, le=100)
     selection_risk: SelectionRisk | None = None
     recommended_action: str | None = None
+    strategy_reason: str | None = None
+    user_strategy_note: str | None = None
 
 
 class CompanyRead(CompanyBase):
