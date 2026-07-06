@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 import { apiRequest } from "@/lib/api"
 import { APP_DATA_REFRESH_EVENT } from "@/lib/notification-events"
-import { formatLocalizedDate, useLanguagePreference } from "@/lib/language"
+import { formatLocalizedDate, text, useLanguagePreference, type LanguageMode } from "@/lib/language"
 import { StatusBadge } from "@/components/status-badge"
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger"
@@ -115,6 +115,54 @@ const priorityTone: Record<Priority, Tone> = {
   low: "info",
 }
 
+function copy(language: LanguageMode, value: { en: string; ja: string }) {
+  if (language === "ja-en") return `${value.en} / ${value.ja}`
+  return text(language, value)
+}
+
+const commandCopy = {
+  commandCenter: { en: "Command Center", ja: "\u53f8\u4ee4\u5854" },
+  title: { en: "Today's decisions and priorities", ja: "\u4eca\u65e5\u306e\u5224\u65ad\u3068\u512a\u5148\u9806\u4f4d" },
+  description: {
+    en: "Advisor and Decision Engine suggestions are separated from Dashboard so you can review only action-focused guidance here.",
+    ja: "Advisor\u3068Decision Engine\u306e\u63d0\u6848\u3092Dashboard\u304b\u3089\u5206\u96e2\u3057\u3001\u884c\u52d5\u306b\u76f4\u7d50\u3059\u308b\u5185\u5bb9\u3060\u3051\u3092\u78ba\u8a8d\u3067\u304d\u307e\u3059\u3002",
+  },
+  mainIssue: { en: "Main Issue", ja: "\u4e3b\u306a\u8ab2\u984c" },
+  loading: { en: "Loading Command Center...", ja: "Command Center\u3092\u8aad\u307f\u8fbc\u307f\u4e2d..." },
+  todaysMission: { en: "Today's Mission", ja: "\u4eca\u65e5\u306e\u30df\u30c3\u30b7\u30e7\u30f3" },
+  thisWeek: { en: "This Week", ja: "\u4eca\u9031" },
+  suggestedImprovements: { en: "Suggested Improvements", ja: "\u6539\u5584\u63d0\u6848" },
+  upcomingDeadlines: { en: "Upcoming Deadlines", ja: "\u76f4\u8fd1\u306e\u7de0\u5207" },
+  noDeadlineAlerts: { en: "No deadline alerts.", ja: "\u7de0\u5207\u30a2\u30e9\u30fc\u30c8\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
+  upcomingEvents: { en: "Upcoming Events", ja: "\u4eca\u5f8c\u306e\u30a4\u30d9\u30f3\u30c8" },
+  noUpcomingEvents: { en: "No upcoming events.", ja: "\u4eca\u5f8c\u306e\u30a4\u30d9\u30f3\u30c8\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
+  currentSituation: { en: "Current Situation", ja: "\u73fe\u5728\u306e\u72b6\u6cc1" },
+  companies: { en: "Companies", ja: "\u4f01\u696d" },
+  interviews: { en: "Interviews", ja: "\u9762\u63a5" },
+  offers: { en: "Offers", ja: "\u5185\u5b9a" },
+  due7d: { en: "Due <=7d", ja: "7\u65e5\u4ee5\u5185" },
+  decisionEngine: { en: "Decision Engine", ja: "\u610f\u601d\u6c7a\u5b9a\u30a8\u30f3\u30b8\u30f3" },
+  systemToday: { en: "System: Today's Mission", ja: "\u30b7\u30b9\u30c6\u30e0: \u4eca\u65e5\u306e\u30df\u30c3\u30b7\u30e7\u30f3" },
+  systemWeek: { en: "System: This Week", ja: "\u30b7\u30b9\u30c6\u30e0: \u4eca\u9031" },
+  systemAnalysis: { en: "System Analysis", ja: "\u30b7\u30b9\u30c6\u30e0\u5206\u6790" },
+  recentNotifications: { en: "Recent Notifications", ja: "\u6700\u8fd1\u306e\u901a\u77e5" },
+  unread: { en: "unread", ja: "\u672a\u8aad" },
+  noNotifications: { en: "No notifications.", ja: "\u901a\u77e5\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
+  footerNote: {
+    en: "This page is intentionally separate from Dashboard so the daily overview stays fast. Advisor and Decision Engine only analyze and prioritize. You make the final decision.",
+    ja: "Dashboard\u3092\u8efd\u304f\u4fdd\u3064\u305f\u3081\u3001\u3053\u306e\u30da\u30fc\u30b8\u306f\u5206\u96e2\u3057\u3066\u3044\u307e\u3059\u3002Advisor\u3068Decision Engine\u306f\u5206\u6790\u3068\u512a\u5148\u9806\u4f4d\u4ed8\u3051\u3060\u3051\u3092\u884c\u3044\u3001\u6700\u7d42\u5224\u65ad\u306f\u3042\u306a\u305f\u304c\u884c\u3044\u307e\u3059\u3002",
+  },
+  markDone: { en: "Mark Done", ja: "\u5b8c\u4e86" },
+  addToTask: { en: "Add To Task", ja: "\u30bf\u30b9\u30af\u3078\u8ffd\u52a0" },
+  added: { en: "Added", ja: "\u8ffd\u52a0\u6e08\u307f" },
+  dismiss: { en: "Dismiss", ja: "\u975e\u8868\u793a" },
+  noSuggestedActions: { en: "No suggested actions.", ja: "\u63d0\u6848\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
+  noSystemTasks: { en: "No system tasks.", ja: "\u30b7\u30b9\u30c6\u30e0\u30bf\u30b9\u30af\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
+  applicationBalance: { en: "Application Balance", ja: "\u5fdc\u52df\u30d0\u30e9\u30f3\u30b9" },
+  riskMonitor: { en: "Risk Monitor", ja: "\u30ea\u30b9\u30af\u76e3\u8996" },
+  hold: { en: "Hold", ja: "\u4fdd\u7559" },
+}
+
 const emptyAdvisor: AdvisorSummary = {
   current_situation: "No advisor data loaded yet.",
   main_issue: "No Issue",
@@ -165,6 +213,7 @@ function eventCompany(event: NonNullable<DashboardSummary["upcoming_events"]>[nu
 function ActionList({
   title,
   actions,
+  language,
   hiddenIds,
   doneIds,
   taskIds,
@@ -174,6 +223,7 @@ function ActionList({
 }: {
   title: string
   actions: AdvisorAction[]
+  language: LanguageMode
   hiddenIds: Set<string>
   doneIds: Set<string>
   taskIds: Set<string>
@@ -202,22 +252,22 @@ function ActionList({
               <div className="mt-4 flex flex-wrap gap-2">
                 <button type="button" onClick={() => onDone(action)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:bg-muted">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Mark Done
+                  {copy(language, commandCopy.markDone)}
                 </button>
                 <button type="button" onClick={() => onAddToTask(action)} disabled={taskIds.has(action.id)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50">
                   <ListTodo className="h-3.5 w-3.5" />
-                  {taskIds.has(action.id) ? "Added" : "Add To Task"}
+                  {taskIds.has(action.id) ? copy(language, commandCopy.added) : copy(language, commandCopy.addToTask)}
                 </button>
                 <button type="button" onClick={() => onDismiss(action)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
                   <X className="h-3.5 w-3.5" />
-                  Dismiss
+                  {copy(language, commandCopy.dismiss)}
                 </button>
               </div>
             </article>
           ))
         ) : (
           <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
-            No suggested actions.
+            {copy(language, commandCopy.noSuggestedActions)}
           </p>
         )}
       </div>
@@ -225,7 +275,7 @@ function ActionList({
   )
 }
 
-function SimpleTaskList({ title, tasks }: { title: string; tasks: DecisionTask[] }) {
+function SimpleTaskList({ title, tasks, language }: { title: string; tasks: DecisionTask[]; language: LanguageMode }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
       <h3 className="text-lg font-semibold text-foreground">{title}</h3>
@@ -242,7 +292,7 @@ function SimpleTaskList({ title, tasks }: { title: string; tasks: DecisionTask[]
           ))
         ) : (
           <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
-            No system tasks.
+            {copy(language, commandCopy.noSystemTasks)}
           </p>
         )}
       </div>
@@ -250,10 +300,10 @@ function SimpleTaskList({ title, tasks }: { title: string; tasks: DecisionTask[]
   )
 }
 
-function RiskMonitor({ risks }: { risks: Record<"es" | "spi" | "interview" | "deadline", Priority> }) {
+function RiskMonitor({ risks, language }: { risks: Record<"es" | "spi" | "interview" | "deadline", Priority>; language: LanguageMode }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="text-lg font-semibold text-foreground">Risk Monitor</h3>
+      <h3 className="text-lg font-semibold text-foreground">{copy(language, commandCopy.riskMonitor)}</h3>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {([
           ["ES", risks.es],
@@ -273,6 +323,7 @@ function RiskMonitor({ risks }: { risks: Record<"es" | "spi" | "interview" | "de
 
 function ApplicationBalance({
   balance,
+  language,
 }: {
   balance: {
     reach_ratio: number
@@ -284,6 +335,7 @@ function ApplicationBalance({
     ideal_core_ratio?: number
     ideal_safe_ratio?: number
   }
+  language: LanguageMode
 }) {
   const rows = [
     ["Reach", balance.reach_ratio, balance.ideal_reach_ratio ?? 30],
@@ -293,7 +345,7 @@ function ApplicationBalance({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="text-lg font-semibold text-foreground">Application Balance</h3>
+      <h3 className="text-lg font-semibold text-foreground">{copy(language, commandCopy.applicationBalance)}</h3>
       <div className="mt-4 space-y-4">
         {rows.map(([label, current, ideal]) => (
           <div key={label}>
@@ -307,7 +359,7 @@ function ApplicationBalance({
           </div>
         ))}
         <div className="flex justify-between rounded-xl border border-border bg-background/65 px-4 py-3 text-sm">
-          <span className="text-muted-foreground">Hold</span>
+          <span className="text-muted-foreground">{copy(language, commandCopy.hold)}</span>
           <span className="font-medium text-foreground">{balance.hold_count}</span>
         </div>
       </div>
@@ -398,25 +450,24 @@ export function CommandCenterView() {
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               <Target className="h-4 w-4" />
-              <span>Command Center</span>
+              <span>{copy(language, commandCopy.commandCenter)}</span>
             </div>
-            <h2 className="mt-2 text-2xl font-semibold text-foreground">今日の判断と優先順位</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-foreground">{copy(language, commandCopy.title)}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Dashboardから重い分析パネルを分離しました。ここでは Advisor と Decision Engine の提案を、行動しやすい順番で確認します。
+              {copy(language, commandCopy.description)}
             </p>
           </div>
           <div className="rounded-2xl border border-primary/30 bg-primary/10 px-5 py-4 lg:min-w-72">
-            <p className="text-xs font-medium text-muted-foreground">Main Issue</p>
+            <p className="text-xs font-medium text-muted-foreground">{copy(language, commandCopy.mainIssue)}</p>
             <p className="mt-1 text-3xl font-semibold text-primary">{advisor.main_issue}</p>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{advisor.reason}</p>
           </div>
         </div>
       </section>
-
       {loading && (
         <div className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading Command Center...
+          {copy(language, commandCopy.loading)}
         </div>
       )}
 
@@ -429,8 +480,9 @@ export function CommandCenterView() {
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
           <ActionList
-            title="Today's Mission"
+            title={copy(language, commandCopy.todaysMission)}
             actions={advisor.todays_mission}
+            language={language}
             hiddenIds={hiddenIds}
             doneIds={doneIds}
             taskIds={taskIds}
@@ -440,8 +492,9 @@ export function CommandCenterView() {
           />
 
           <ActionList
-            title="This Week"
+            title={copy(language, commandCopy.thisWeek)}
             actions={advisor.this_week}
+            language={language}
             hiddenIds={hiddenIds}
             doneIds={doneIds}
             taskIds={taskIds}
@@ -452,8 +505,9 @@ export function CommandCenterView() {
 
           {advisor.suggested_improvements.length > 0 && (
             <ActionList
-              title="Suggested Improvements"
+              title={copy(language, commandCopy.suggestedImprovements)}
               actions={advisor.suggested_improvements}
+              language={language}
               hiddenIds={hiddenIds}
               doneIds={doneIds}
               taskIds={taskIds}
@@ -468,7 +522,7 @@ export function CommandCenterView() {
           <section className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <AlertTriangle className="h-4 w-4 text-warning-foreground" />
-              Upcoming Deadlines
+              {copy(language, commandCopy.upcomingDeadlines)}
             </div>
             <div className="mt-4 grid gap-3">
               {advisor.deadline_alerts.length ? (
@@ -483,7 +537,7 @@ export function CommandCenterView() {
                 ))
               ) : (
                 <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
-                  No deadline alerts.
+                  {copy(language, commandCopy.noDeadlineAlerts)}
                 </p>
               )}
             </div>
@@ -492,7 +546,7 @@ export function CommandCenterView() {
           <section className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <CalendarCheck className="h-4 w-4 text-accent" />
-              Upcoming Events
+              {copy(language, commandCopy.upcomingEvents)}
             </div>
             <div className="mt-4 grid gap-3">
               {upcomingEvents.length ? (
@@ -509,7 +563,7 @@ export function CommandCenterView() {
                 })
               ) : (
                 <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
-                  No upcoming events.
+                  {copy(language, commandCopy.noUpcomingEvents)}
                 </p>
               )}
             </div>
@@ -519,51 +573,51 @@ export function CommandCenterView() {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <section className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="text-lg font-semibold text-foreground">Current Situation</h3>
+          <h3 className="text-lg font-semibold text-foreground">{copy(language, commandCopy.currentSituation)}</h3>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{advisor.current_situation}</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-border bg-background/65 p-4">
-              <p className="text-xs text-muted-foreground">Companies</p>
+              <p className="text-xs text-muted-foreground">{copy(language, commandCopy.companies)}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.kpis.total_companies ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border bg-background/65 p-4">
-              <p className="text-xs text-muted-foreground">Interviews</p>
+              <p className="text-xs text-muted-foreground">{copy(language, commandCopy.interviews)}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.kpis.interviews ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border bg-background/65 p-4">
-              <p className="text-xs text-muted-foreground">Offers</p>
+              <p className="text-xs text-muted-foreground">{copy(language, commandCopy.offers)}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.kpis.offers ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border bg-background/65 p-4">
-              <p className="text-xs text-muted-foreground">Due {"<=7d"}</p>
+              <p className="text-xs text-muted-foreground">{copy(language, commandCopy.due7d)}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.kpis.deadline_soon ?? 0}</p>
             </div>
           </div>
         </section>
 
-        <ApplicationBalance balance={advisor.application_balance} />
-        <RiskMonitor risks={advisor.risk_monitor} />
+        <ApplicationBalance balance={advisor.application_balance} language={language} />
+        <RiskMonitor risks={advisor.risk_monitor} language={language} />
       </div>
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
           <Sparkles className="h-4 w-4" />
-          <span>Decision Engine</span>
+          <span>{copy(language, commandCopy.decisionEngine)}</span>
         </div>
         <div className="mt-4 grid gap-6 xl:grid-cols-[1fr_1fr_0.9fr]">
-          <SimpleTaskList title="System: Today's Mission" tasks={decision.today_tasks} />
-          <SimpleTaskList title="System: This Week" tasks={decision.week_tasks} />
+          <SimpleTaskList title={copy(language, commandCopy.systemToday)} tasks={decision.today_tasks} language={language} />
+          <SimpleTaskList title={copy(language, commandCopy.systemWeek)} tasks={decision.week_tasks} language={language} />
           <div className="space-y-6">
             <section className="rounded-2xl border border-border bg-background/65 p-5">
-              <p className="text-sm font-semibold text-foreground">Main Issue</p>
+              <p className="text-sm font-semibold text-foreground">{copy(language, commandCopy.mainIssue)}</p>
               <p className="mt-2 text-2xl font-semibold text-accent">{decision.main_issue}</p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{decision.reason}</p>
             </section>
-            <ApplicationBalance balance={decision.application_balance} />
+            <ApplicationBalance balance={decision.application_balance} language={language} />
           </div>
         </div>
         <p className="mt-5 rounded-xl border border-border bg-background/65 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-          System Analysis: {decision.system_analysis}
+          {copy(language, commandCopy.systemAnalysis)}: {decision.system_analysis}
         </p>
       </section>
 
@@ -571,9 +625,9 @@ export function CommandCenterView() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Bell className="h-4 w-4 text-accent" />
-            Recent Notifications
+            {copy(language, commandCopy.recentNotifications)}
           </div>
-          <StatusBadge tone={unreadCount ? "warning" : "neutral"}>{unreadCount} unread</StatusBadge>
+          <StatusBadge tone={unreadCount ? "warning" : "neutral"}>{unreadCount} {copy(language, commandCopy.unread)}</StatusBadge>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {notifications.slice(0, 6).length ? (
@@ -591,7 +645,7 @@ export function CommandCenterView() {
             ))
           ) : (
             <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
-              No notifications.
+              {copy(language, commandCopy.noNotifications)}
             </p>
           )}
         </div>
@@ -601,10 +655,11 @@ export function CommandCenterView() {
         <div className="flex items-start gap-3">
           <ArrowRight className="mt-0.5 h-4 w-4 text-accent" />
           <p className="text-sm leading-relaxed text-muted-foreground">
-            This page is intentionally separate from Dashboard so the daily overview stays fast. Advisor and Decision Engine only analyze and prioritize. You make the final decision.
+            {copy(language, commandCopy.footerNote)}
           </p>
         </div>
       </section>
     </div>
   )
 }
+

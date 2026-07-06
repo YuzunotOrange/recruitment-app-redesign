@@ -7,6 +7,7 @@ import { Bell, Check, RadioTower, Trash2, X, Zap } from "lucide-react"
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
 import { NOTIFICATION_REFRESH_EVENT } from "@/lib/notification-events"
+import { useThemePreference } from "@/lib/theme"
 
 type NotificationItem = {
   id: number
@@ -27,6 +28,7 @@ function formatNotificationDate(value: string | null, language: "en" | "ja" | "j
 
 export function NotificationCenter() {
   const language = useLanguagePreference()
+  const theme = useThemePreference()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,9 +97,13 @@ export function NotificationCenter() {
 
   const panel = (
     <div className="relative flex max-h-[min(75vh,42rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-border/80 bg-popover/95 text-popover-foreground shadow-[0_18px_70px_rgba(0,0,0,0.42)] ring-1 ring-white/10 backdrop-blur-xl sm:max-h-[min(70vh,42rem)] sm:w-[24rem] sm:rounded-2xl">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
-      <div className="pointer-events-none absolute -right-10 -top-16 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute -left-12 bottom-0 h-28 w-28 rounded-full bg-accent/20 blur-3xl" />
+      {theme === "cyberpunk" && (
+        <>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
+          <div className="pointer-events-none absolute -right-10 -top-16 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
+          <div className="pointer-events-none absolute -left-12 bottom-0 h-28 w-28 rounded-full bg-accent/20 blur-3xl" />
+        </>
+      )}
 
       <div className="relative border-b border-border/80 px-4 py-3">
         <div className="flex items-start justify-between gap-3">
@@ -132,6 +138,7 @@ export function NotificationCenter() {
           </div>
         </div>
 
+        {theme === "cyberpunk" && (
         <div className="cyber-glow-pulse mt-3 overflow-hidden rounded-xl border border-warning/35 bg-[linear-gradient(135deg,rgba(255,216,77,0.16),rgba(0,234,255,0.08)_46%,rgba(255,43,214,0.12))] shadow-[inset_0_0_22px_rgba(0,234,255,0.08)]">
           <div className="flex items-center justify-between gap-3 border-b border-warning/20 px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
@@ -159,6 +166,7 @@ export function NotificationCenter() {
             <span>Total {alertCount}</span>
           </div>
         </div>
+        )}
       </div>
 
       <div className="relative min-h-0 overflow-y-auto p-3">
@@ -181,17 +189,17 @@ export function NotificationCenter() {
                 className={`relative overflow-hidden rounded-xl border p-3 transition ${
                   notification.is_read
                     ? "border-border/70 bg-background/55"
-                    : "border-primary/45 bg-primary/10 shadow-[0_0_24px_rgba(255,43,214,0.12)]"
+                    : "border-primary/45 bg-primary/10 shadow-sm"
                 }`}
               >
                 {!notification.is_read && (
-                  <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-gradient-to-b from-warning via-primary to-accent" />
+                  <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-primary" />
                 )}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 pl-1">
                     <div className="flex items-center gap-2">
                       {!notification.is_read && (
-                        <span className="h-2 w-2 shrink-0 rounded-full bg-primary shadow-[0_0_10px_rgba(255,43,214,0.9)]" />
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
                       )}
                       <p className="min-w-0 truncate text-sm font-semibold text-foreground">{notification.title}</p>
                     </div>
@@ -239,7 +247,7 @@ export function NotificationCenter() {
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="cyber-flicker absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shadow-[0_0_14px_rgba(255,43,214,0.45)]">
+          <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shadow-sm">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

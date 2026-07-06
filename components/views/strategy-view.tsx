@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { apiRequest } from "@/lib/api"
 import { companyStatusMeta, industryMeta, type CompanyStatus, type Industry, type Priority } from "@/lib/data"
+import { text, useLanguagePreference, type LanguageMode } from "@/lib/language"
 import { StatusBadge } from "@/components/status-badge"
 
 type StrategyRank = "S" | "A" | "B"
@@ -92,10 +93,10 @@ const idealRatios: Record<Exclude<StrategyPosition, "Hold">, number> = {
 }
 
 const positionTone: Record<StrategyPosition, string> = {
-  Reach: "border-fuchsia-400/40 bg-fuchsia-500/10 text-fuchsia-200",
-  Core: "border-cyan-400/40 bg-cyan-500/10 text-cyan-200",
-  Safe: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200",
-  Hold: "border-zinc-400/40 bg-zinc-500/10 text-zinc-200",
+  Reach: "border-fuchsia-400/50 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-200",
+  Core: "border-cyan-400/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200",
+  Safe: "border-emerald-400/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200",
+  Hold: "border-zinc-400/50 bg-zinc-500/10 text-zinc-700 dark:text-zinc-200",
 }
 
 const urgencyTone: Record<string, string> = {
@@ -120,6 +121,75 @@ const researchStatusTone: Record<StrategyCompany["research_status"], string> = {
   rejected: "bg-destructive/10 text-destructive ring-destructive/30",
 }
 
+function bilingual(language: LanguageMode, value: { en: string; ja: string }) {
+  if (language === "ja-en") return `${value.en} / ${value.ja}`
+  return text(language, value)
+}
+
+const researchStatusCopy: Record<StrategyCompany["research_status"], { en: string; ja: string }> = {
+  not_generated: { en: "Not generated", ja: "\u672a\u751f\u6210" },
+  mock_generated: { en: "Mock generated", ja: "Mock\u751f\u6210" },
+  generated: { en: "Generated", ja: "\u751f\u6210\u6e08\u307f" },
+  accepted: { en: "Accepted", ja: "\u627f\u8a8d\u6e08\u307f" },
+  rejected: { en: "Rejected", ja: "\u5374\u4e0b" },
+}
+
+function researchStatusText(status: StrategyCompany["research_status"], language: LanguageMode) {
+  return bilingual(language, researchStatusCopy[status])
+}
+
+const strategyCopy = {
+  command: { en: "Strategy MVP", ja: "\u6226\u7565MVP" },
+  title: { en: "Application Strategy Dashboard", ja: "\u5fdc\u52df\u6226\u7565\u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9" },
+  subtitle: {
+    en: "Strategy Position shows portfolio balance. Company Rank stays as preference only.",
+    ja: "Strategy Position\u306f\u5fdc\u52df\u30dd\u30fc\u30c8\u30d5\u30a9\u30ea\u30aa\u306e\u5f79\u5272\u3067\u3059\u3002Company Rank\u306f\u5fd7\u671b\u5ea6\u3068\u3057\u3066\u53c2\u8003\u8868\u793a\u3057\u307e\u3059\u3002",
+  },
+  recalculate: { en: "Recalculate", ja: "\u518d\u8a08\u7b97" },
+  loading: { en: "Loading strategy...", ja: "\u6226\u7565\u3092\u8aad\u307f\u8fbc\u307f\u4e2d..." },
+  totalCompanies: { en: "Total Companies", ja: "\u4f01\u696d\u6570" },
+  registeredCompanies: { en: "Registered companies", ja: "\u767b\u9332\u6e08\u307f\u4f01\u696d" },
+  strategyPosition: { en: "Strategy Position", ja: "\u5fdc\u52df\u6226\u7565\u4e0a\u306e\u4f4d\u7f6e\u3065\u3051" },
+  excludedFromBalance: { en: "Excluded from balance", ja: "\u30d0\u30e9\u30f3\u30b9\u8a08\u7b97\u304b\u3089\u9664\u5916" },
+  esRejected: { en: "ES Rejected", ja: "ES\u843d\u3061" },
+  spiRejected: { en: "SPI Rejected", ja: "SPI\u843d\u3061" },
+  interview: { en: "Interview", ja: "\u9762\u63a5" },
+  offer: { en: "Offer", ja: "\u5185\u5b9a" },
+  mainIssue: { en: "Main Issue", ja: "\u4e3b\u306a\u8ab2\u984c" },
+  ruleDiagnosis: { en: "Rule-based diagnosis", ja: "\u30eb\u30fc\u30eb\u30d9\u30fc\u30b9\u8a3a\u65ad" },
+  balance: { en: "Application Balance", ja: "\u5fdc\u52df\u30d0\u30e9\u30f3\u30b9" },
+  balanceSubtitle: {
+    en: "Balance uses Strategy Position only. Company Rank is shown as preference data.",
+    ja: "\u30d0\u30e9\u30f3\u30b9\u8a08\u7b97\u306b\u306fStrategy Position\u306e\u307f\u3092\u4f7f\u3044\u307e\u3059\u3002Company Rank\u306f\u5fd7\u671b\u5ea6\u3068\u3057\u3066\u8868\u793a\u3057\u307e\u3059\u3002",
+  },
+  balanceAdvice: { en: "Balance Advice", ja: "\u30d0\u30e9\u30f3\u30b9\u6539\u5584\u6848" },
+  holdNote: {
+    en: "Hold is shown separately and is not included in Application Balance.",
+    ja: "Hold\u306f\u5225\u67a0\u8868\u793a\u3067\u3001\u5fdc\u52df\u30d0\u30e9\u30f3\u30b9\u306b\u306f\u542b\u3081\u307e\u305b\u3093\u3002",
+  },
+  holdTracked: { en: "Hold is tracked separately and excluded from the ideal ratio.", ja: "Hold\u306f\u5225\u67a0\u3067\u7ba1\u7406\u3057\u3001\u7406\u60f3\u6bd4\u7387\u304b\u3089\u9664\u5916\u3057\u307e\u3059\u3002" },
+  noCompanies: { en: "No companies yet.", ja: "\u4f01\u696d\u306f\u307e\u3060\u3042\u308a\u307e\u305b\u3093\u3002" },
+  companyRank: { en: "Company Rank", ja: "\u4f01\u696d\u5fd7\u671b\u5ea6" },
+  mainRisk: { en: "Main Risk", ja: "\u4e3b\u306a\u30ea\u30b9\u30af" },
+  notAnalyzed: { en: "Not analyzed", ja: "\u672a\u5206\u6790" },
+  success: { en: "Success", ja: "\u901a\u904e\u898b\u8fbc\u307f" },
+  aiResearch: { en: "AI Research", ja: "AI\u5206\u6790" },
+  nextAction: { en: "Next Action", ja: "\u6b21\u306e\u884c\u52d5" },
+  notSet: { en: "Not set", ja: "\u672a\u8a2d\u5b9a" },
+  openMemo: { en: "Open Memo / Edit Strategy", ja: "\u30e1\u30e2\u3092\u958b\u304f / \u6226\u7565\u3092\u7de8\u96c6" },
+  companies: { en: "companies", ja: "\u793e" },
+  current: { en: "Current", ja: "\u73fe\u5728" },
+  ideal: { en: "Ideal", ja: "\u7406\u60f3" },
+  separate: { en: "separate", ja: "\u5225\u67a0" },
+  strategyMemo: { en: "Strategy Memo", ja: "\u6226\u7565\u30e1\u30e2" },
+  memoSubtitle: {
+    en: "Read the system analysis, then decide your own application strategy.",
+    ja: "\u30b7\u30b9\u30c6\u30e0\u5206\u6790\u3092\u78ba\u8a8d\u3057\u305f\u3046\u3048\u3067\u3001\u6700\u7d42\u7684\u306a\u5fdc\u52df\u6226\u7565\u306f\u3042\u306a\u305f\u304c\u6c7a\u5b9a\u3057\u307e\u3059\u3002",
+  },
+  close: { en: "Close", ja: "\u9589\u3058\u308b" },
+  recommendedActions: { en: "Recommended Actions", ja: "\u304a\u3059\u3059\u3081\u30a2\u30af\u30b7\u30e7\u30f3" },
+  noActions: { en: "No extra recommended actions.", ja: "\u8ffd\u52a0\u306e\u304a\u3059\u3059\u3081\u30a2\u30af\u30b7\u30e7\u30f3\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
+}
 function emptySummary(): StrategySummary {
   return {
     buckets: {
@@ -209,24 +279,24 @@ function formatDateTime(value: string | null) {
   }).format(date)
 }
 
-function displayValue(value: number | string | null | undefined, suffix = "") {
-  if (value == null || value === "") return "Not analyzed"
+function displayValue(value: number | string | null | undefined, suffix = "", language: LanguageMode = "en") {
+  if (value == null || value === "") return bilingual(language, strategyCopy.notAnalyzed)
   return `${value}${suffix}`
 }
 
-function difficultyStars(level: number | null) {
-  if (level == null) return "Not analyzed"
+function difficultyStars(level: number | null, language: LanguageMode = "en") {
+  if (level == null) return bilingual(language, strategyCopy.notAnalyzed)
   const safeLevel = Math.max(1, Math.min(5, level))
   return `${"★".repeat(safeLevel)}${"☆".repeat(5 - safeLevel)}`
 }
 
-function interviewStatus(status: CompanyStatus) {
-  if (status === "interview") return "Interview active"
-  if (status === "offer") return "Offer reached"
-  if (status === "es_rejected") return "Stopped at ES"
-  if (status === "spi_rejected") return "Stopped at SPI"
-  if (status === "declined") return "Declined"
-  return "Not started"
+function interviewStatus(status: CompanyStatus, language: LanguageMode = "en") {
+  if (status === "interview") return bilingual(language, { en: "Interview active", ja: "面接中" })
+  if (status === "offer") return bilingual(language, { en: "Offer reached", ja: "内定" })
+  if (status === "es_rejected") return bilingual(language, { en: "Stopped at ES", ja: "ESで終了" })
+  if (status === "spi_rejected") return bilingual(language, { en: "Stopped at SPI", ja: "SPIで終了" })
+  if (status === "declined") return bilingual(language, { en: "Declined", ja: "辞退" })
+  return bilingual(language, { en: "Not started", ja: "未開始" })
 }
 
 function flattenCompanies(summary: StrategySummary) {
@@ -237,12 +307,12 @@ function flattenCompanies(summary: StrategySummary) {
   return Array.from(byId.values())
 }
 
-function mainIssueText(metrics: StrategySummary["metrics"]) {
-  if (metrics.offers > 0) return "内定後の比較・意思決定"
-  if (metrics.spi_rejected >= metrics.es_rejected && metrics.spi_rejected > 0) return "SPI対策が最優先"
-  if (metrics.es_rejected > metrics.spi_rejected && metrics.es_rejected > 0) return "ES改善が最優先"
-  if (metrics.interviews < 3) return "面接機会を増やす"
-  return "バランス良好"
+function mainIssueText(metrics: StrategySummary["metrics"], language: LanguageMode) {
+  if (metrics.offers > 0) return bilingual(language, { en: "Compare offers and decide carefully", ja: "内定後の比較・意思決定" })
+  if (metrics.spi_rejected >= metrics.es_rejected && metrics.spi_rejected > 0) return bilingual(language, { en: "Prioritize SPI practice", ja: "SPI対策が最優先" })
+  if (metrics.es_rejected > metrics.spi_rejected && metrics.es_rejected > 0) return bilingual(language, { en: "Improve ES quality", ja: "ES改善が最優先" })
+  if (metrics.interviews < 3) return bilingual(language, { en: "Increase interview opportunities", ja: "面接機会を増やす" })
+  return bilingual(language, { en: "Balanced", ja: "バランス良好" })
 }
 
 function balanceRatio(position: Exclude<StrategyPosition, "Hold">, buckets: Record<StrategyPosition, StrategyCompany[]>) {
@@ -250,9 +320,9 @@ function balanceRatio(position: Exclude<StrategyPosition, "Hold">, buckets: Reco
   return activeTotal ? Math.round((buckets[position].length / activeTotal) * 1000) / 10 : 0
 }
 
-function balanceAdvice(buckets: Record<StrategyPosition, StrategyCompany[]>) {
+function balanceAdvice(buckets: Record<StrategyPosition, StrategyCompany[]>, language: LanguageMode) {
   const activeTotal = activeStrategyPositions.reduce((total, position) => total + buckets[position].length, 0)
-  if (!activeTotal) return "Reach / Core / Safe に企業を分類すると応募バランスを確認できます。"
+  if (!activeTotal) return bilingual(language, { en: "Classify companies into Reach / Core / Safe to check portfolio balance.", ja: "Reach / Core / Safe に企業を分類すると応募バランスを確認できます。" })
 
   const shortages = activeStrategyPositions
     .map((position) => {
@@ -262,9 +332,11 @@ function balanceAdvice(buckets: Record<StrategyPosition, StrategyCompany[]>) {
     .filter((item) => item.shortage > 0)
     .sort((a, b) => b.shortage - a.shortage)
 
-  if (!shortages.length) return "現在の応募バランスは理想比率に近いです。"
+  if (!shortages.length) return bilingual(language, { en: "Current application balance is close to the ideal ratio.", ja: "現在の応募バランスは理想比率に近いです。" })
   const target = shortages[0]
-  return `${target.position}企業をあと${target.shortage}社追加するとバランスが良くなります。`
+  if (language === "ja") return `${target.position}企業をあと${target.shortage}社追加するとバランスが良くなります。`
+  if (language === "ja-en") return `${target.position} companies are short by ${target.shortage}. / ${target.position}企業をあと${target.shortage}社追加するとバランスが良くなります。`
+  return `${target.position} companies are short by ${target.shortage}.`
 }
 
 function SummaryCard({ label, value, description }: { label: string; value: number | string; description?: string }) {
@@ -309,9 +381,9 @@ function SectionHeader({
   tone: "readonly" | "ai" | "user"
 }) {
   const toneClass = {
-    readonly: "text-blue-300",
-    ai: "text-purple-300",
-    user: "text-pink-300",
+    readonly: "text-blue-700 dark:text-blue-300",
+    ai: "text-purple-700 dark:text-purple-300",
+    user: "text-emerald-700 dark:text-emerald-300",
   }[tone]
 
   return (
@@ -339,7 +411,7 @@ function ReadOnlyItem({
     <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-300">Read Only</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Read Only</p>
           <p className="mt-2 text-sm font-semibold text-foreground">{title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
@@ -367,7 +439,7 @@ function AiItem({
     <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-purple-300">AI / System</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-purple-700 dark:text-purple-300">AI / System</p>
           <p className="mt-2 text-sm font-semibold text-foreground">{title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
@@ -390,10 +462,10 @@ function UserField({
   children: ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-pink-500/30 bg-pink-500/10 p-3">
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-pink-300">User Input</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">User Input</p>
           <label className="mt-2 block text-sm font-semibold text-foreground">{title}</label>
           <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         </div>
@@ -409,11 +481,13 @@ function BalanceMeter({
   current,
   ideal,
   count,
+  language,
 }: {
   label: Exclude<StrategyPosition, "Hold">
   current: number
   ideal: number
   count: number
+  language: LanguageMode
 }) {
   const delta = Math.round((current - ideal) * 10) / 10
 
@@ -422,12 +496,12 @@ function BalanceMeter({
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="font-semibold text-foreground">{label}</span>
         <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[label]}`}>
-          {count} companies
+          {count} {bilingual(language, strategyCopy.companies)}
         </span>
       </div>
       <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-        <span>Current: {current}%</span>
-        <span>Ideal: {ideal}%</span>
+        <span>{bilingual(language, strategyCopy.current)}: {current}%</span>
+        <span>{bilingual(language, strategyCopy.ideal)}: {ideal}%</span>
         <span>{delta >= 0 ? `+${delta}%` : `${delta}%`}</span>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -437,7 +511,15 @@ function BalanceMeter({
   )
 }
 
-function CompanyStrategyCard({ company, onSelect }: { company: StrategyCompany; onSelect: (company: StrategyCompany) => void }) {
+function CompanyStrategyCard({
+  company,
+  onSelect,
+  language,
+}: {
+  company: StrategyCompany
+  onSelect: (company: StrategyCompany) => void
+  language: LanguageMode
+}) {
   const statusMeta = companyStatusMeta[company.status]
   const position = strategyPositionOf(company)
 
@@ -446,35 +528,42 @@ function CompanyStrategyCard({ company, onSelect }: { company: StrategyCompany; 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{company.name}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Company Rank: {company.priority} / 志望度</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {bilingual(language, strategyCopy.companyRank)}: {company.priority}
+          </p>
         </div>
         <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[position]}`}>
           {position}
         </span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <StatusBadge tone={statusMeta.tone}>{statusMeta.en}</StatusBadge>
+        <StatusBadge tone={statusMeta.tone}>{text(language, statusMeta)}</StatusBadge>
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          Main Risk: {company.selection_risk && company.selection_risk !== "Unknown" ? company.selection_risk : "Not analyzed"}
+          {bilingual(language, strategyCopy.mainRisk)}:{" "}
+          {company.selection_risk && company.selection_risk !== "Unknown"
+            ? company.selection_risk
+            : bilingual(language, strategyCopy.notAnalyzed)}
         </span>
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-          Success: {displayValue(company.success_probability, "%")}
+          {bilingual(language, strategyCopy.success)}: {displayValue(company.success_probability, "%", language)}
         </span>
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${researchStatusTone[company.research_status]}`}>
-          AI Research: {researchStatusLabel[company.research_status]}
+          {bilingual(language, strategyCopy.aiResearch)}: {researchStatusText(company.research_status, language)}
         </span>
       </div>
       <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Next Action:</span> {company.recommended_action || "Not set"}
+        <span className="font-medium text-foreground">{bilingual(language, strategyCopy.nextAction)}:</span>{" "}
+        {company.recommended_action || bilingual(language, strategyCopy.notSet)}
       </p>
       <span className="mt-3 inline-flex min-h-9 items-center rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground">
-        Open Memo / Edit Strategy
+        {bilingual(language, strategyCopy.openMemo)}
       </span>
     </button>
   )
 }
 
 export function StrategyView() {
+  const language = useLanguagePreference()
   const [summary, setSummary] = useState<StrategySummary>(emptySummary)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -563,8 +652,8 @@ export function StrategyView() {
     }
   }
 
-  const biggestIssue = useMemo(() => mainIssueText(summary.metrics), [summary.metrics])
-  const balanceMessage = useMemo(() => balanceAdvice(positionBuckets), [positionBuckets])
+  const biggestIssue = useMemo(() => mainIssueText(summary.metrics, language), [summary.metrics, language])
+  const balanceMessage = useMemo(() => balanceAdvice(positionBuckets, language), [positionBuckets, language])
 
   const selectedSystemRecommendation = selectedCompany ? systemRecommendation(selectedCompany) : null
 
@@ -574,11 +663,11 @@ export function StrategyView() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
             <BrainCircuit className="h-4 w-4" />
-            <span>Strategy MVP</span>
+            <span>{bilingual(language, strategyCopy.command)}</span>
           </div>
-          <h2 className="mt-2 text-xl font-semibold text-foreground">Application Strategy Dashboard</h2>
+          <h2 className="mt-2 text-xl font-semibold text-foreground">{bilingual(language, strategyCopy.title)}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Strategy Position shows portfolio balance. Company Rank stays as preference only.
+            {bilingual(language, strategyCopy.subtitle)}
           </p>
         </div>
         <button
@@ -588,36 +677,36 @@ export function StrategyView() {
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${saving ? "animate-spin" : ""}`} />
-          Recalculate
+          {bilingual(language, strategyCopy.recalculate)}
         </button>
       </div>
 
       {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
-      {loading && <div className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">Loading strategy...</div>}
+      {loading && <div className="rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">{bilingual(language, strategyCopy.loading)}</div>}
 
       {!loading && (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <SummaryCard label="Total Companies" value={summary.metrics.total_companies} description="Registered companies" />
-            <SummaryCard label="Reach" value={positionBuckets.Reach.length} description="Strategy Position" />
-            <SummaryCard label="Core" value={positionBuckets.Core.length} description="Strategy Position" />
-            <SummaryCard label="Safe" value={positionBuckets.Safe.length} description="Strategy Position" />
-            <SummaryCard label="Hold" value={positionBuckets.Hold.length} description="Excluded from balance" />
-            <SummaryCard label="ES Rejected" value={summary.metrics.es_rejected} />
-            <SummaryCard label="SPI Rejected" value={summary.metrics.spi_rejected} />
-            <SummaryCard label="Interview" value={summary.metrics.interviews} />
-            <SummaryCard label="Offer" value={summary.metrics.offers} />
-            <SummaryCard label="Main Issue" value={biggestIssue} description="Rule-based diagnosis" />
+            <SummaryCard label={bilingual(language, strategyCopy.totalCompanies)} value={summary.metrics.total_companies} description={bilingual(language, strategyCopy.registeredCompanies)} />
+            <SummaryCard label="Reach" value={positionBuckets.Reach.length} description={bilingual(language, strategyCopy.strategyPosition)} />
+            <SummaryCard label="Core" value={positionBuckets.Core.length} description={bilingual(language, strategyCopy.strategyPosition)} />
+            <SummaryCard label="Safe" value={positionBuckets.Safe.length} description={bilingual(language, strategyCopy.strategyPosition)} />
+            <SummaryCard label="Hold" value={positionBuckets.Hold.length} description={bilingual(language, strategyCopy.excludedFromBalance)} />
+            <SummaryCard label={bilingual(language, strategyCopy.esRejected)} value={summary.metrics.es_rejected} />
+            <SummaryCard label={bilingual(language, strategyCopy.spiRejected)} value={summary.metrics.spi_rejected} />
+            <SummaryCard label={bilingual(language, strategyCopy.interview)} value={summary.metrics.interviews} />
+            <SummaryCard label={bilingual(language, strategyCopy.offer)} value={summary.metrics.offers} />
+            <SummaryCard label={bilingual(language, strategyCopy.mainIssue)} value={biggestIssue} description={bilingual(language, strategyCopy.ruleDiagnosis)} />
           </section>
 
           <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <BarChart3 className="h-4 w-4 text-accent" />
-                Application Balance
+                {bilingual(language, strategyCopy.balance)}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Balance uses Strategy Position only. Company Rank is shown as preference data.
+                {bilingual(language, strategyCopy.balanceSubtitle)}
               </p>
               <div className="mt-4 grid gap-3 lg:grid-cols-3">
                 {activeStrategyPositions.map((position) => (
@@ -627,6 +716,7 @@ export function StrategyView() {
                     count={positionBuckets[position].length}
                     current={balanceRatio(position, positionBuckets)}
                     ideal={idealRatios[position]}
+                    language={language}
                   />
                 ))}
               </div>
@@ -634,11 +724,11 @@ export function StrategyView() {
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Target className="h-4 w-4 text-primary" />
-                Balance Advice
+                {bilingual(language, strategyCopy.balanceAdvice)}
               </div>
               <p className="mt-4 text-lg font-semibold text-foreground">{balanceMessage}</p>
               <div className="mt-4 rounded-xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">
-                Hold: {positionBuckets.Hold.length} companies. Hold is tracked separately and excluded from the ideal ratio.
+                Hold: {positionBuckets.Hold.length} {bilingual(language, strategyCopy.companies)}. {bilingual(language, strategyCopy.holdTracked)}
               </div>
             </div>
           </section>
@@ -649,19 +739,19 @@ export function StrategyView() {
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-semibold text-foreground">{position}</h3>
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[position]}`}>
-                    {positionBuckets[position].length} / {position === "Hold" ? "separate" : `${positionRatios[position]}%`}
+                    {positionBuckets[position].length} / {position === "Hold" ? bilingual(language, strategyCopy.separate) : `${positionRatios[position]}%`}
                   </span>
                 </div>
                 {position === "Hold" && (
                   <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                    Hold is shown separately and is not included in Application Balance.
+                    {bilingual(language, strategyCopy.holdNote)}
                   </p>
                 )}
                 <div className="space-y-3">
                   {positionBuckets[position].length ? (
-                    positionBuckets[position].map((company) => <CompanyStrategyCard key={company.id} company={company} onSelect={selectCompany} />)
+                    positionBuckets[position].map((company) => <CompanyStrategyCard key={company.id} company={company} onSelect={selectCompany} language={language} />)
                   ) : (
-                    <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">No companies yet.</p>
+                    <p className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">{bilingual(language, strategyCopy.noCompanies)}</p>
                   )}
                 </div>
               </div>
@@ -674,11 +764,11 @@ export function StrategyView() {
                 <div>
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
                     <Target className="h-4 w-4" />
-                    <span>Strategy Memo</span>
+                    <span>{bilingual(language, strategyCopy.strategyMemo)}</span>
                   </div>
                   <h3 className="mt-2 text-lg font-semibold text-foreground">{selectedCompany.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Read the system analysis, then decide your own application strategy.
+                    {bilingual(language, strategyCopy.memoSubtitle)}
                   </p>
                 </div>
                 <button
@@ -690,7 +780,7 @@ export function StrategyView() {
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
-                  Close
+                  {bilingual(language, strategyCopy.close)}
                 </button>
               </div>
 
@@ -732,7 +822,9 @@ export function StrategyView() {
                       <div>
                         <p className="text-sm font-semibold text-foreground">Accepted Research</p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {selectedCompany.research_status === "accepted" ? "あり" : "なし"}
+                          {selectedCompany.research_status === "accepted"
+                            ? bilingual(language, { en: "Yes", ja: "\u3042\u308a" })
+                            : bilingual(language, { en: "No", ja: "\u306a\u3057" })}
                         </p>
                       </div>
                       <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:min-w-[420px]">
@@ -803,7 +895,7 @@ export function StrategyView() {
                         type="button"
                         disabled={!selectedSystemRecommendation}
                         onClick={() => selectedSystemRecommendation && setMemoForm((current) => current && ({ ...current, strategy_position: selectedSystemRecommendation }))}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-200 hover:bg-purple-500/15 disabled:opacity-50"
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-500/15 disabled:opacity-50 dark:text-purple-200"
                       >
                         <Check className="h-4 w-4" />
                         Use AI Suggested Position
@@ -811,7 +903,7 @@ export function StrategyView() {
                       <button
                         type="button"
                         onClick={() => setMemoForm((current) => current && ({ ...current, reason: current.reason || "I will review the system suggestion and adjust it with my own judgment." }))}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-2 text-sm font-medium text-pink-200 hover:bg-pink-500/15"
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-200"
                       >
                         <Edit3 className="h-4 w-4" />
                         Edit Before Save
@@ -819,7 +911,7 @@ export function StrategyView() {
                       <button
                         type="button"
                         onClick={() => setMemoForm((current) => current && ({ ...current, strategy_position: "Hold", reason: current.reason || "Hold for now and review after collecting more information." }))}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-500/15"
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-500/15 dark:text-zinc-200"
                       >
                         <XCircle className="h-4 w-4" />
                         Reject Suggestion
@@ -882,4 +974,5 @@ export function StrategyView() {
     </div>
   )
 }
+
 
