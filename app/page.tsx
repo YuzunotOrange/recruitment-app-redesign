@@ -6,6 +6,7 @@ import { CyberTicker } from "@/components/cyber-ticker"
 import { NotificationCenter } from "@/components/notification-center"
 import { RightPanel } from "@/components/right-panel"
 import { Dashboard } from "@/components/views/dashboard"
+import { CommandCenterView } from "@/components/views/command-center-view"
 import { CompaniesView } from "@/components/views/companies-view"
 import { CompanyNotebookView } from "@/components/views/company-notebook-view"
 import { EventsView } from "@/components/views/events-view"
@@ -19,6 +20,7 @@ import { copy, secondaryText, text, useLanguagePreference } from "@/lib/language
 
 const titles: Record<ViewKey, { en: string; ja: string }> = {
   dashboard: copy.dashboard,
+  command: { en: "Command Center", ja: "司令塔" },
   companies: copy.companies,
   events: copy.events,
   tasks: { en: "Tasks", ja: "タスク" },
@@ -61,6 +63,7 @@ export default function Page() {
         <div className="flex min-h-0 flex-1">
           <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-28 pt-4 md:px-8 md:py-6">
             {view === "dashboard" && <Dashboard onNavigate={changeView} />}
+            {view === "command" && <CommandCenterView />}
             {view === "companies" &&
               (notebookCompanyId ? (
                 <CompanyNotebookView companyId={notebookCompanyId} onBack={() => setNotebookCompanyId(null)} />
@@ -74,7 +77,7 @@ export default function Page() {
             {view === "calendar" && <CalendarView />}
             {view === "settings" && <SettingsView />}
           </main>
-          <RightPanel />
+          {view !== "command" && <RightPanel />}
         </div>
         <MobileNav active={view} onChange={changeView} />
       </div>

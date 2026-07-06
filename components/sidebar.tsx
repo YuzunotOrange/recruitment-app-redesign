@@ -8,16 +8,18 @@ import {
   GraduationCap,
   LayoutDashboard,
   ListTodo,
+  Radar,
   Settings,
   Target,
 } from "lucide-react"
 import { copy, secondaryText, text, useLanguagePreference } from "@/lib/language"
 import { cn } from "@/lib/utils"
 
-export type ViewKey = "dashboard" | "companies" | "events" | "tasks" | "strategy" | "timeline" | "calendar" | "settings"
+export type ViewKey = "dashboard" | "command" | "companies" | "events" | "tasks" | "strategy" | "timeline" | "calendar" | "settings"
 
 const nav: { key: ViewKey; en: string; ja: string; icon: React.ElementType }[] = [
   { key: "dashboard", ...copy.dashboard, icon: LayoutDashboard },
+  { key: "command", en: "Command", ja: "司令塔", icon: Radar },
   { key: "companies", ...copy.companies, icon: Building2 },
   { key: "events", ...copy.events, icon: CalendarClock },
   { key: "tasks", en: "Tasks", ja: "タスク", icon: ListTodo },

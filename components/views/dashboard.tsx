@@ -85,90 +85,6 @@ type RecentActivity = {
   tone?: Tone
 }
 
-type NotificationItem = {
-  id: number
-  title: string
-  message: string
-  type: "deadline" | "interview" | "internship" | "offer" | "custom" | "system"
-  scheduled_at: string | null
-  is_read: boolean
-}
-
-type DecisionTask = {
-  title: string
-  reason: string
-  priority: "high" | "medium" | "low"
-}
-
-type DecisionSummary = {
-  main_issue: "SPI" | "ES" | "Interview" | "Application Balance" | "Deadline" | "No Issue"
-  reason: string
-  today_tasks: DecisionTask[]
-  week_tasks: DecisionTask[]
-  suggested_companies: Array<{
-    position: "Reach" | "Core" | "Safe"
-    shortage: number
-    reason: string
-  }>
-  risk_monitor: {
-    es: "high" | "medium" | "low"
-    spi: "high" | "medium" | "low"
-    interview: "high" | "medium" | "low"
-    deadline: "high" | "medium" | "low"
-  }
-  application_balance: {
-    reach_count: number
-    core_count: number
-    safe_count: number
-    hold_count: number
-    reach_ratio: number
-    core_ratio: number
-    safe_ratio: number
-    ideal_reach_ratio: number
-    ideal_core_ratio: number
-    ideal_safe_ratio: number
-  }
-  current_situation: string
-  system_analysis: string
-}
-
-type AdvisorAction = {
-  id: string
-  title: string
-  reason: string
-  priority: "high" | "medium" | "low"
-}
-
-type AdvisorSummary = {
-  current_situation: string
-  main_issue: "SPI" | "ES" | "Interview" | "Application Balance" | "Deadline" | "No Issue"
-  reason: string
-  todays_mission: AdvisorAction[]
-  this_week: AdvisorAction[]
-  suggested_improvements: AdvisorAction[]
-  risk_monitor: {
-    es: "high" | "medium" | "low"
-    spi: "high" | "medium" | "low"
-    interview: "high" | "medium" | "low"
-    deadline: "high" | "medium" | "low"
-  }
-  deadline_alerts: Array<{
-    title: string
-    due_date: string
-    days_left: number
-    source: "company" | "event"
-  }>
-  missing_portfolio: string[]
-  application_balance: {
-    reach_ratio: number
-    core_ratio: number
-    safe_ratio: number
-    hold_count: number
-    recommendation: string
-  }
-  system_note: string
-}
-
 const emptySummary: DashboardSummary = {
   kpis: {
     total_companies: 0,
@@ -188,49 +104,6 @@ const emptySummary: DashboardSummary = {
   upcoming_events: [],
   upcoming_deadlines: [],
   recent_activities: [],
-}
-
-const emptyDecisionSummary: DecisionSummary = {
-  main_issue: "No Issue",
-  reason: "No decision data loaded yet.",
-  today_tasks: [],
-  week_tasks: [],
-  suggested_companies: [],
-  risk_monitor: { es: "low", spi: "low", interview: "low", deadline: "low" },
-  application_balance: {
-    reach_count: 0,
-    core_count: 0,
-    safe_count: 0,
-    hold_count: 0,
-    reach_ratio: 0,
-    core_ratio: 0,
-    safe_ratio: 0,
-    ideal_reach_ratio: 30,
-    ideal_core_ratio: 50,
-    ideal_safe_ratio: 20,
-  },
-  current_situation: "No data yet.",
-  system_analysis: "Decision Engine will analyze your current application data.",
-}
-
-const emptyAdvisorSummary: AdvisorSummary = {
-  current_situation: "No advisor data loaded yet.",
-  main_issue: "No Issue",
-  reason: "Advisor Engine will analyze your current job-hunting data.",
-  todays_mission: [],
-  this_week: [],
-  suggested_improvements: [],
-  risk_monitor: { es: "low", spi: "low", interview: "low", deadline: "low" },
-  deadline_alerts: [],
-  missing_portfolio: [],
-  application_balance: {
-    reach_ratio: 0,
-    core_ratio: 0,
-    safe_ratio: 0,
-    hold_count: 0,
-    recommendation: "No portfolio data yet.",
-  },
-  system_note: "Advisor Engine analyzes and prioritizes only. The final decision is yours.",
 }
 
 const toneText: Record<Tone, string> = {
@@ -886,108 +759,8 @@ function ProgressScoreCard({
   )
 }
 
-function DecisionTaskList({ title, tasks }: { title: string; tasks: DecisionTask[] }) {
-  return (
-    <div className="rounded-2xl border border-border bg-background/55 p-4">
-      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-      <div className="mt-3 space-y-3">
-        {tasks.length ? (
-          tasks.map((task, index) => (
-            <div key={`${task.title}-${index}`} className="rounded-xl border border-border bg-card/70 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-semibold text-foreground">{task.title}</p>
-                <StatusBadge tone={urgencyTone[task.priority]}>{task.priority}</StatusBadge>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{task.reason}</p>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-muted-foreground">No tasks suggested.</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function AdvisorActionList({
-  title,
-  actions,
-  hiddenIds,
-  doneIds,
-  taskIds,
-  onDismiss,
-  onMarkDone,
-  onAddToTask,
-}: {
-  title: string
-  actions: AdvisorAction[]
-  hiddenIds: Set<string>
-  doneIds: Set<string>
-  taskIds: Set<string>
-  onDismiss: (action: AdvisorAction) => void
-  onMarkDone: (action: AdvisorAction) => void
-  onAddToTask: (action: AdvisorAction) => void
-}) {
-  const visibleActions = actions.filter((action) => !hiddenIds.has(action.id))
-
-  return (
-    <div className="rounded-2xl border border-border bg-background/55 p-4">
-      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-      <div className="mt-3 space-y-3">
-        {visibleActions.length ? (
-          visibleActions.map((action) => (
-            <div key={action.id} className="rounded-xl border border-border bg-card/70 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className={`text-sm font-semibold ${doneIds.has(action.id) ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {action.title}
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{action.reason}</p>
-                </div>
-                <StatusBadge tone={urgencyTone[action.priority]}>{action.priority}</StatusBadge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={() => onMarkDone(action)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Mark Done
-                </button>
-                <button type="button" onClick={() => onAddToTask(action)} disabled={taskIds.has(action.id)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50">
-                  <ListTodo className="h-3.5 w-3.5" />
-                  {taskIds.has(action.id) ? "Added" : "Add To Task"}
-                </button>
-                <button type="button" onClick={() => onDismiss(action)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <X className="h-3.5 w-3.5" />
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-muted-foreground">No advisor actions.</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function RiskPill({ label, level }: { label: string; level: "high" | "medium" | "low" }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-background/55 px-3 py-2 text-sm">
-      <span className="font-medium text-foreground">{label}</span>
-      <StatusBadge tone={urgencyTone[level]}>{level}</StatusBadge>
-    </div>
-  )
-}
-
-
 export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void }) {
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary)
-  const [decisionSummary, setDecisionSummary] = useState<DecisionSummary>(emptyDecisionSummary)
-  const [advisorSummary, setAdvisorSummary] = useState<AdvisorSummary>(emptyAdvisorSummary)
-  const [advisorHiddenIds, setAdvisorHiddenIds] = useState<Set<string>>(new Set())
-  const [advisorDoneIds, setAdvisorDoneIds] = useState<Set<string>>(new Set())
-  const [advisorTaskIds, setAdvisorTaskIds] = useState<Set<string>>(new Set())
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [strategy, setStrategy] = useState<StrategySummary | null>(null)
   const [companies, setCompanies] = useState<ApiCompany[]>([])
   const [events, setEvents] = useState<ApiEvent[]>([])
@@ -1001,20 +774,14 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     setError(null)
 
     try {
-      const [summaryData, companyData, eventData, decisionData, advisorData, notificationData] = await Promise.all([
+      const [summaryData, companyData, eventData] = await Promise.all([
         apiRequest<DashboardSummary>("/dashboard/summary"),
         apiRequest<ApiCompany[]>("/companies"),
         apiRequest<ApiEvent[]>("/events"),
-        apiRequest<DecisionSummary>("/decision/summary"),
-        apiRequest<AdvisorSummary>("/advisor/summary"),
-        apiRequest<NotificationItem[]>("/notifications"),
       ])
       setSummary(summaryData)
       setCompanies(companyData)
       setEvents(eventData)
-      setDecisionSummary(decisionData)
-      setAdvisorSummary(advisorData)
-      setNotifications(notificationData)
       try {
         setStrategy(await apiRequest<StrategySummary>("/strategy"))
       } catch {
@@ -1035,32 +802,6 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     window.addEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
     return () => window.removeEventListener(APP_DATA_REFRESH_EVENT, loadSummary)
   }, [loadSummary])
-
-  const dismissAdvisorAction = useCallback((action: AdvisorAction) => {
-    setAdvisorHiddenIds((current) => new Set(current).add(action.id))
-  }, [])
-
-  const markAdvisorActionDone = useCallback((action: AdvisorAction) => {
-    setAdvisorDoneIds((current) => new Set(current).add(action.id))
-  }, [])
-
-  const addAdvisorActionToTask = useCallback(async (action: AdvisorAction) => {
-    try {
-      await apiRequest("/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: action.title,
-          description: `From Career Advisor: ${action.reason}`,
-          priority: action.priority,
-          status: "todo",
-        }),
-      })
-      setAdvisorTaskIds((current) => new Set(current).add(action.id))
-      window.dispatchEvent(new Event(APP_DATA_REFRESH_EVENT))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add advisor action to tasks.")
-    }
-  }, [])
 
   const detailsByKey = useMemo<Record<DetailKey, DetailItem[]>>(() => {
     const allCompanyItems = companies.map((company) => ({
@@ -1223,8 +964,6 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   const clearRate = actionableCount > 0 ? Math.min(100, Math.round((clearedCount / actionableCount) * 100)) : 0
   const hudRingStyle = { "--cyber-clear": `${clearRate}%` } as CSSProperties
   const activeCard = cards.find((card) => card.key === activeDetail)
-  const recentNotifications = notifications.slice(0, 4)
-  const unreadNotificationCount = notifications.filter((notification) => !notification.is_read).length
 
   return (
     <div className="space-y-6">
@@ -1285,142 +1024,43 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       )}
 
       <div className="rounded-2xl border border-primary/30 bg-card p-5 shadow-sm">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               <Target className="h-4 w-4" />
               <span>Command Center</span>
             </div>
-            <h3 className="mt-2 text-xl font-semibold text-foreground">Today's Mission</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              CareerTrack prioritizes today's actions from companies, deadlines, events, notifications, and advisor analysis.
+            <h3 className="mt-2 text-xl font-semibold text-foreground">司令塔は専用ページに移動しました</h3>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Today's Mission、Career Advisor、Decision Engine は情報量が多いため、Dashboardから分離しました。
+              Dashboardは全体把握を軽く保ち、詳細な優先順位付けはCommand Centerで確認できます。
             </p>
           </div>
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 sm:min-w-64">
-            <p className="text-xs font-medium text-muted-foreground">Main Issue</p>
-            <p className="mt-1 text-2xl font-semibold text-primary">{advisorSummary.main_issue}</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{advisorSummary.reason}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate("command")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
+            Command Centerへ
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </div>
-
-        <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr_1fr]">
-          <AdvisorActionList
-            title="Today"
-            actions={advisorSummary.todays_mission}
-            hiddenIds={advisorHiddenIds}
-            doneIds={advisorDoneIds}
-            taskIds={advisorTaskIds}
-            onDismiss={dismissAdvisorAction}
-            onMarkDone={markAdvisorActionDone}
-            onAddToTask={addAdvisorActionToTask}
-          />
-          <div className="rounded-2xl border border-border bg-background/55 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h4 className="text-sm font-semibold text-foreground">Upcoming Deadlines</h4>
-              <button type="button" onClick={() => onNavigate("companies")} className="text-xs font-medium text-accent hover:underline">
-                Companies
-              </button>
-            </div>
-            <div className="mt-3 space-y-2">
-              {advisorSummary.deadline_alerts.length ? (
-                advisorSummary.deadline_alerts.slice(0, 4).map((alert) => (
-                  <div key={`${alert.source}-${alert.title}-${alert.due_date}`} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="truncate font-medium text-foreground">{alert.title}</span>
-                      <StatusBadge tone={alert.days_left <= 1 ? "danger" : "warning"}>{alert.days_left}d</StatusBadge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{formatLocalizedDate(alert.due_date, language)}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-xl border border-dashed border-border bg-card/70 p-3 text-sm text-muted-foreground">
-                  No upcoming deadlines. Add ES deadlines or deadline events when they appear.
-                </div>
-              )}
-            </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs text-muted-foreground">Companies</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{summary.kpis.total_companies}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-background/55 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h4 className="text-sm font-semibold text-foreground">Upcoming Events</h4>
-              <button type="button" onClick={() => onNavigate("events")} className="text-xs font-medium text-accent hover:underline">
-                Events
-              </button>
-            </div>
-            <div className="mt-3 space-y-2">
-              {upcoming.length ? (
-                upcoming.slice(0, 4).map((event) => {
-                  const date = getEventDate(event)
-                  return (
-                    <div key={event.id} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
-                      <p className="truncate font-medium text-foreground">{event.title}</p>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {date ? formatLocalizedDate(date, language) : "-"} / {getCompanyName(event)} / {event.time ?? "-"}
-                      </p>
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="rounded-xl border border-dashed border-border bg-card/70 p-3 text-sm text-muted-foreground">
-                  No events yet. Create an event to make your next action concrete.
-                </div>
-              )}
-            </div>
+          <div className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs text-muted-foreground">Interviews</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{summary.kpis.interviews}</p>
           </div>
-        </div>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-background/55 p-4">
-            <h4 className="text-sm font-semibold text-foreground">Application Balance</h4>
-            <div className="mt-3 space-y-3">
-              {[
-                ["Reach", advisorSummary.application_balance.reach_ratio, 30],
-                ["Core", advisorSummary.application_balance.core_ratio, 50],
-                ["Safe", advisorSummary.application_balance.safe_ratio, 20],
-              ].map(([label, current, ideal]) => (
-                <div key={label as string}>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{label}</span>
-                    <span>{current}% / ideal {ideal}%</span>
-                  </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(Number(current), 100)}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 rounded-xl border border-border bg-card/70 p-3 text-xs leading-relaxed text-muted-foreground">
-              {advisorSummary.application_balance.recommendation}
-            </p>
+          <div className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs text-muted-foreground">Due {"<=7d"}</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{summary.kpis.deadline_soon}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-background/55 p-4">
-            <h4 className="text-sm font-semibold text-foreground">Current Situation</h4>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Companies</p><p className="text-xl font-semibold text-foreground">{summary.kpis.total_companies}</p></div>
-              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Interviews</p><p className="text-xl font-semibold text-foreground">{summary.kpis.interviews}</p></div>
-              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Offers</p><p className="text-xl font-semibold text-foreground">{summary.kpis.offers}</p></div>
-              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Due {"<=7d"}</p><p className="text-xl font-semibold text-foreground">{summary.kpis.deadline_soon}</p></div>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-background/55 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h4 className="text-sm font-semibold text-foreground">Recent Notifications</h4>
-              <StatusBadge tone={unreadNotificationCount ? "warning" : "neutral"}>{unreadNotificationCount} unread</StatusBadge>
-            </div>
-            <div className="mt-3 space-y-2">
-              {recentNotifications.length ? (
-                recentNotifications.map((notification) => (
-                  <div key={notification.id} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      {!notification.is_read && <span className="h-2 w-2 rounded-full bg-primary" />}
-                      <p className="truncate font-medium text-foreground">{notification.title}</p>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-xl border border-dashed border-border bg-card/70 p-3 text-sm text-muted-foreground">No notifications.</p>
-              )}
-            </div>
+          <div className="rounded-xl border border-border bg-background/70 p-4">
+            <p className="text-xs text-muted-foreground">Upcoming</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{upcoming.length}</p>
           </div>
         </div>
       </div>
@@ -1456,162 +1096,6 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
             <p className="mt-1 text-2xl font-semibold text-foreground">{strategyIssue}</p>
           </div>
         </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-              <Sparkles className="h-4 w-4" />
-              <span>Career Advisor</span>
-            </div>
-            <h3 className="mt-2 text-lg font-semibold text-foreground">Advisor Summary</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{advisorSummary.current_situation}</p>
-          </div>
-          <div className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 sm:min-w-64">
-            <p className="text-xs font-medium text-muted-foreground">Main Issue</p>
-            <p className="mt-1 text-2xl font-semibold text-accent">{advisorSummary.main_issue}</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{advisorSummary.reason}</p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_1.2fr_1fr]">
-          <AdvisorActionList
-            title="Today's Mission"
-            actions={advisorSummary.todays_mission}
-            hiddenIds={advisorHiddenIds}
-            doneIds={advisorDoneIds}
-            taskIds={advisorTaskIds}
-            onDismiss={dismissAdvisorAction}
-            onMarkDone={markAdvisorActionDone}
-            onAddToTask={addAdvisorActionToTask}
-          />
-          <AdvisorActionList
-            title="This Week"
-            actions={advisorSummary.this_week}
-            hiddenIds={advisorHiddenIds}
-            doneIds={advisorDoneIds}
-            taskIds={advisorTaskIds}
-            onDismiss={dismissAdvisorAction}
-            onMarkDone={markAdvisorActionDone}
-            onAddToTask={addAdvisorActionToTask}
-          />
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-background/55 p-4">
-              <h4 className="text-sm font-semibold text-foreground">Risk Monitor</h4>
-              <div className="mt-3 grid gap-2">
-                <RiskPill label="ES" level={advisorSummary.risk_monitor.es} />
-                <RiskPill label="SPI" level={advisorSummary.risk_monitor.spi} />
-                <RiskPill label="Interview" level={advisorSummary.risk_monitor.interview} />
-                <RiskPill label="Deadline" level={advisorSummary.risk_monitor.deadline} />
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border bg-background/55 p-4">
-              <h4 className="text-sm font-semibold text-foreground">Application Balance</h4>
-              <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <div className="flex justify-between"><span>Reach</span><span>{advisorSummary.application_balance.reach_ratio}%</span></div>
-                <div className="flex justify-between"><span>Core</span><span>{advisorSummary.application_balance.core_ratio}%</span></div>
-                <div className="flex justify-between"><span>Safe</span><span>{advisorSummary.application_balance.safe_ratio}%</span></div>
-                <div className="flex justify-between"><span>Hold</span><span>{advisorSummary.application_balance.hold_count}</span></div>
-              </div>
-              <p className="mt-3 rounded-xl border border-border bg-card/70 p-3 text-xs leading-relaxed text-muted-foreground">
-                {advisorSummary.application_balance.recommendation}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border bg-background/55 p-4">
-              <h4 className="text-sm font-semibold text-foreground">Deadline Alerts</h4>
-              <div className="mt-3 space-y-2">
-                {advisorSummary.deadline_alerts.length ? (
-                  advisorSummary.deadline_alerts.slice(0, 3).map((alert) => (
-                    <div key={`${alert.source}-${alert.title}-${alert.due_date}`} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-medium text-foreground">{alert.title}</span>
-                        <StatusBadge tone={alert.days_left <= 1 ? "danger" : "warning"}>{alert.days_left}d</StatusBadge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{formatLocalizedDate(alert.due_date, language)}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No deadline alerts.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {advisorSummary.suggested_improvements.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-border bg-background/55 p-4">
-            <h4 className="text-sm font-semibold text-foreground">Suggested Improvements</h4>
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {advisorSummary.suggested_improvements.map((action) => (
-                <div key={action.id} className="rounded-xl border border-border bg-card/70 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-foreground">{action.title}</p>
-                    <StatusBadge tone={urgencyTone[action.priority]}>{action.priority}</StatusBadge>
-                  </div>
-                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{action.reason}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <p className="mt-4 rounded-xl border border-border bg-background/55 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-          {advisorSummary.system_note}
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-              <Sparkles className="h-4 w-4" />
-              <span>Decision Engine</span>
-            </div>
-            <h3 className="mt-2 text-lg font-semibold text-foreground">
-              {text(language, { en: "Current Situation", ja: "現在の状況" })}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">{decisionSummary.current_situation}</p>
-          </div>
-          <div className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 sm:min-w-56">
-            <p className="text-xs font-medium text-muted-foreground">Main Issue</p>
-            <p className="mt-1 text-2xl font-semibold text-accent">{decisionSummary.main_issue}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{decisionSummary.reason}</p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_1.2fr_1fr]">
-          <DecisionTaskList title="Today's Mission" tasks={decisionSummary.today_tasks} />
-          <DecisionTaskList title="This Week" tasks={decisionSummary.week_tasks} />
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-background/55 p-4">
-              <h4 className="text-sm font-semibold text-foreground">Application Balance</h4>
-              <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <div className="flex justify-between"><span>Reach</span><span>{decisionSummary.application_balance.reach_ratio}% / {decisionSummary.application_balance.ideal_reach_ratio}%</span></div>
-                <div className="flex justify-between"><span>Core</span><span>{decisionSummary.application_balance.core_ratio}% / {decisionSummary.application_balance.ideal_core_ratio}%</span></div>
-                <div className="flex justify-between"><span>Safe</span><span>{decisionSummary.application_balance.safe_ratio}% / {decisionSummary.application_balance.ideal_safe_ratio}%</span></div>
-                <div className="flex justify-between"><span>Hold</span><span>{decisionSummary.application_balance.hold_count} separate</span></div>
-              </div>
-              {decisionSummary.suggested_companies.length > 0 && (
-                <p className="mt-3 rounded-xl border border-border bg-card/70 p-3 text-xs text-muted-foreground">
-                  {decisionSummary.suggested_companies[0].position} companies are short by {decisionSummary.suggested_companies[0].shortage}.
-                </p>
-              )}
-            </div>
-            <div className="rounded-2xl border border-border bg-background/55 p-4">
-              <h4 className="text-sm font-semibold text-foreground">Risk Monitor</h4>
-              <div className="mt-3 grid gap-2">
-                <RiskPill label="ES" level={decisionSummary.risk_monitor.es} />
-                <RiskPill label="SPI" level={decisionSummary.risk_monitor.spi} />
-                <RiskPill label="Interview" level={decisionSummary.risk_monitor.interview} />
-                <RiskPill label="Deadline" level={decisionSummary.risk_monitor.deadline} />
-              </div>
-            </div>
-          </div>
-        </div>
-        <p className="mt-4 rounded-xl border border-border bg-background/55 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-          AI/System Analysis: {decisionSummary.system_analysis}
-        </p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-5">
