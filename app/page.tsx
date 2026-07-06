@@ -7,6 +7,7 @@ import { NotificationCenter } from "@/components/notification-center"
 import { RightPanel } from "@/components/right-panel"
 import { Dashboard } from "@/components/views/dashboard"
 import { CompaniesView } from "@/components/views/companies-view"
+import { CompanyNotebookView } from "@/components/views/company-notebook-view"
 import { EventsView } from "@/components/views/events-view"
 import { TasksView } from "@/components/views/tasks-view"
 import { StrategyView } from "@/components/views/strategy-view"
@@ -30,17 +31,27 @@ const titles: Record<ViewKey, { en: string; ja: string }> = {
 export default function Page() {
   useRequireAuth()
   const [view, setView] = useState<ViewKey>("dashboard")
+  const [notebookCompanyId, setNotebookCompanyId] = useState<number | null>(null)
   const language = useLanguagePreference()
-  const secondaryTitle = secondaryText(language, titles[view])
+  const pageTitle =
+    view === "companies" && notebookCompanyId
+      ? { en: "Company Notebook", ja: "Company Notebook" }
+      : titles[view]
+  const secondaryTitle = secondaryText(language, pageTitle)
+
+  const changeView = (nextView: ViewKey) => {
+    setView(nextView)
+    if (nextView !== "companies") setNotebookCompanyId(null)
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar active={view} onChange={setView} />
+      <Sidebar active={view} onChange={changeView} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:static md:px-8 md:py-4">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{text(language, titles[view])}</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{text(language, pageTitle)}</h1>
             {secondaryTitle && <p className="text-xs text-muted-foreground">{secondaryTitle}</p>}
           </div>
           <NotificationCenter />
@@ -49,8 +60,13 @@ export default function Page() {
 
         <div className="flex min-h-0 flex-1">
           <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-28 pt-4 md:px-8 md:py-6">
-            {view === "dashboard" && <Dashboard onNavigate={setView} />}
-            {view === "companies" && <CompaniesView />}
+            {view === "dashboard" && <Dashboard onNavigate={changeView} />}
+            {view === "companies" &&
+              (notebookCompanyId ? (
+                <CompanyNotebookView companyId={notebookCompanyId} onBack={() => setNotebookCompanyId(null)} />
+              ) : (
+                <CompaniesView onOpenNotebook={setNotebookCompanyId} />
+              ))}
             {view === "events" && <EventsView />}
             {view === "tasks" && <TasksView />}
             {view === "strategy" && <StrategyView />}
@@ -60,7 +76,7 @@ export default function Page() {
           </main>
           <RightPanel />
         </div>
-        <MobileNav active={view} onChange={setView} />
+        <MobileNav active={view} onChange={changeView} />
       </div>
     </div>
   )

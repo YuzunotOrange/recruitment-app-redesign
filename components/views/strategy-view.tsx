@@ -10,7 +10,6 @@ import {
   Edit3,
   RefreshCw,
   Save,
-  ShieldAlert,
   Target,
   Trophy,
   X,
@@ -40,6 +39,10 @@ type StrategyCompany = {
   recommended_action: string | null
   strategy_reason: string | null
   user_strategy_note: string | null
+  research_status: "not_generated" | "mock_generated" | "generated" | "accepted" | "rejected"
+  research_provider: string | null
+  accepted_research_summary: string | null
+  accepted_research_at: string | null
 }
 
 type StrategyAction = {
@@ -80,6 +83,13 @@ type StrategyMemoForm = {
 }
 
 const strategyPositions: StrategyPosition[] = ["Reach", "Core", "Safe", "Hold"]
+const activeStrategyPositions: Exclude<StrategyPosition, "Hold">[] = ["Reach", "Core", "Safe"]
+
+const idealRatios: Record<Exclude<StrategyPosition, "Hold">, number> = {
+  Reach: 30,
+  Core: 50,
+  Safe: 20,
+}
 
 const positionTone: Record<StrategyPosition, string> = {
   Reach: "border-fuchsia-400/40 bg-fuchsia-500/10 text-fuchsia-200",
@@ -92,6 +102,22 @@ const urgencyTone: Record<string, string> = {
   high: "bg-destructive/10 text-destructive ring-destructive/20",
   medium: "bg-warning/15 text-warning-foreground ring-warning/20",
   low: "bg-success/10 text-success ring-success/20",
+}
+
+const researchStatusLabel: Record<StrategyCompany["research_status"], string> = {
+  not_generated: "Not generated",
+  mock_generated: "Mock generated",
+  generated: "Generated",
+  accepted: "Accepted",
+  rejected: "Rejected",
+}
+
+const researchStatusTone: Record<StrategyCompany["research_status"], string> = {
+  not_generated: "bg-muted text-muted-foreground ring-border",
+  mock_generated: "bg-warning/10 text-warning-foreground ring-warning/30",
+  generated: "bg-primary/10 text-primary ring-primary/30",
+  accepted: "bg-success/10 text-success ring-success/30",
+  rejected: "bg-destructive/10 text-destructive ring-destructive/30",
 }
 
 function emptySummary(): StrategySummary {
@@ -170,13 +196,26 @@ function formatDate(dateIso: string | null) {
   return new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(year, month - 1, day))
 }
 
+function formatDateTime(value: string | null) {
+  if (!value) return "-"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
 function displayValue(value: number | string | null | undefined, suffix = "") {
-  if (value == null || value === "") return "未分析"
+  if (value == null || value === "") return "Not analyzed"
   return `${value}${suffix}`
 }
 
 function difficultyStars(level: number | null) {
-  if (level == null) return "未分析"
+  if (level == null) return "Not analyzed"
   const safeLevel = Math.max(1, Math.min(5, level))
   return `${"★".repeat(safeLevel)}${"☆".repeat(5 - safeLevel)}`
 }
@@ -196,6 +235,46 @@ function flattenCompanies(summary: StrategySummary) {
     bucket.companies.forEach((company) => byId.set(company.id, company))
   })
   return Array.from(byId.values())
+}
+
+function mainIssueText(metrics: StrategySummary["metrics"]) {
+  if (metrics.offers > 0) return "内定後の比較・意思決定"
+  if (metrics.spi_rejected >= metrics.es_rejected && metrics.spi_rejected > 0) return "SPI対策が最優先"
+  if (metrics.es_rejected > metrics.spi_rejected && metrics.es_rejected > 0) return "ES改善が最優先"
+  if (metrics.interviews < 3) return "面接機会を増やす"
+  return "バランス良好"
+}
+
+function balanceRatio(position: Exclude<StrategyPosition, "Hold">, buckets: Record<StrategyPosition, StrategyCompany[]>) {
+  const activeTotal = activeStrategyPositions.reduce((total, item) => total + buckets[item].length, 0)
+  return activeTotal ? Math.round((buckets[position].length / activeTotal) * 1000) / 10 : 0
+}
+
+function balanceAdvice(buckets: Record<StrategyPosition, StrategyCompany[]>) {
+  const activeTotal = activeStrategyPositions.reduce((total, position) => total + buckets[position].length, 0)
+  if (!activeTotal) return "Reach / Core / Safe に企業を分類すると応募バランスを確認できます。"
+
+  const shortages = activeStrategyPositions
+    .map((position) => {
+      const idealCount = Math.ceil((activeTotal * idealRatios[position]) / 100)
+      return { position, shortage: Math.max(0, idealCount - buckets[position].length) }
+    })
+    .filter((item) => item.shortage > 0)
+    .sort((a, b) => b.shortage - a.shortage)
+
+  if (!shortages.length) return "現在の応募バランスは理想比率に近いです。"
+  const target = shortages[0]
+  return `${target.position}企業をあと${target.shortage}社追加するとバランスが良くなります。`
+}
+
+function SummaryCard({ label, value, description }: { label: string; value: number | string; description?: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+      {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+    </div>
+  )
 }
 
 function InfoTip({ text }: { text: string }) {
@@ -325,15 +404,34 @@ function UserField({
   )
 }
 
-function StrategyMeter({ label, value }: { label: string; value: number }) {
+function BalanceMeter({
+  label,
+  current,
+  ideal,
+  count,
+}: {
+  label: Exclude<StrategyPosition, "Hold">
+  current: number
+  ideal: number
+  count: number
+}) {
+  const delta = Math.round((current - ideal) * 10) / 10
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="tabular-nums text-muted-foreground">{value}%</span>
+    <div className="rounded-xl border border-border bg-background/60 p-3">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-semibold text-foreground">{label}</span>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[label]}`}>
+          {count} companies
+        </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(value, 100)}%` }} />
+      <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+        <span>Current: {current}%</span>
+        <span>Ideal: {ideal}%</span>
+        <span>{delta >= 0 ? `+${delta}%` : `${delta}%`}</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(current, 100)}%` }} />
       </div>
     </div>
   )
@@ -348,18 +446,30 @@ function CompanyStrategyCard({ company, onSelect }: { company: StrategyCompany; 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{company.name}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Company Rank {company.priority}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Company Rank: {company.priority} / 志望度</p>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[position]}`}>{position}</span>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[position]}`}>
+          {position}
+        </span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <StatusBadge tone={statusMeta.tone}>{statusMeta.en}</StatusBadge>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">Risk {company.selection_risk ?? "未分析"}</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          Main Risk: {company.selection_risk && company.selection_risk !== "Unknown" ? company.selection_risk : "Not analyzed"}
+        </span>
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-          {displayValue(company.success_probability, "%")}
+          Success: {displayValue(company.success_probability, "%")}
+        </span>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${researchStatusTone[company.research_status]}`}>
+          AI Research: {researchStatusLabel[company.research_status]}
         </span>
       </div>
-      {company.recommended_action && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{company.recommended_action}</p>}
+      <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">Next Action:</span> {company.recommended_action || "Not set"}
+      </p>
+      <span className="mt-3 inline-flex min-h-9 items-center rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground">
+        Open Memo / Edit Strategy
+      </span>
     </button>
   )
 }
@@ -398,15 +508,16 @@ export function StrategyView() {
   }, [companies])
 
   const positionRatios = useMemo(() => {
-    const total = companies.length
+    const total = activeStrategyPositions.reduce((count, position) => count + positionBuckets[position].length, 0)
     return strategyPositions.reduce<Record<StrategyPosition, number>>(
       (ratios, position) => {
-        ratios[position] = total ? Math.round((positionBuckets[position].length / total) * 1000) / 10 : 0
+        ratios[position] =
+          position === "Hold" ? 0 : total ? Math.round((positionBuckets[position].length / total) * 1000) / 10 : 0
         return ratios
       },
       { Reach: 0, Core: 0, Safe: 0, Hold: 0 },
     )
-  }, [companies.length, positionBuckets])
+  }, [positionBuckets])
 
   const recalculate = async () => {
     setSaving(true)
@@ -452,12 +563,8 @@ export function StrategyView() {
     }
   }
 
-  const biggestIssue = useMemo(() => {
-    if (summary.metrics.spi_rejected >= 2) return "SPI"
-    if (summary.metrics.es_rejected >= 2) return "ES"
-    if (summary.metrics.interviews < 3) return "Interview volume"
-    return "Balanced"
-  }, [summary])
+  const biggestIssue = useMemo(() => mainIssueText(summary.metrics), [summary.metrics])
+  const balanceMessage = useMemo(() => balanceAdvice(positionBuckets), [positionBuckets])
 
   const selectedSystemRecommendation = selectedCompany ? systemRecommendation(selectedCompany) : null
 
@@ -490,37 +597,49 @@ export function StrategyView() {
 
       {!loading && (
         <>
-          <section className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-card p-4 md:col-span-2">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <SummaryCard label="Total Companies" value={summary.metrics.total_companies} description="Registered companies" />
+            <SummaryCard label="Reach" value={positionBuckets.Reach.length} description="Strategy Position" />
+            <SummaryCard label="Core" value={positionBuckets.Core.length} description="Strategy Position" />
+            <SummaryCard label="Safe" value={positionBuckets.Safe.length} description="Strategy Position" />
+            <SummaryCard label="Hold" value={positionBuckets.Hold.length} description="Excluded from balance" />
+            <SummaryCard label="ES Rejected" value={summary.metrics.es_rejected} />
+            <SummaryCard label="SPI Rejected" value={summary.metrics.spi_rejected} />
+            <SummaryCard label="Interview" value={summary.metrics.interviews} />
+            <SummaryCard label="Offer" value={summary.metrics.offers} />
+            <SummaryCard label="Main Issue" value={biggestIssue} description="Rule-based diagnosis" />
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <BarChart3 className="h-4 w-4 text-accent" />
-                Strategy Position Balance
+                Application Balance
               </div>
-              <div className="mt-4 space-y-4">
-                {strategyPositions.map((position) => (
-                  <StrategyMeter key={position} label={position} value={positionRatios[position]} />
+              <p className="mt-1 text-sm text-muted-foreground">
+                Balance uses Strategy Position only. Company Rank is shown as preference data.
+              </p>
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {activeStrategyPositions.map((position) => (
+                  <BalanceMeter
+                    key={position}
+                    label={position}
+                    count={positionBuckets[position].length}
+                    current={balanceRatio(position, positionBuckets)}
+                    ideal={idealRatios[position]}
+                  />
                 ))}
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <ShieldAlert className="h-4 w-4 text-destructive" />
-                Rejection Pattern
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-muted-foreground">ES rejected</p><p className="text-2xl font-semibold text-foreground">{summary.metrics.es_rejected}</p></div>
-                <div><p className="text-muted-foreground">SPI rejected</p><p className="text-2xl font-semibold text-foreground">{summary.metrics.spi_rejected}</p></div>
-                <div><p className="text-muted-foreground">Interview</p><p className="text-2xl font-semibold text-foreground">{summary.metrics.interviews}</p></div>
-                <div><p className="text-muted-foreground">Offer</p><p className="text-2xl font-semibold text-foreground">{summary.metrics.offers}</p></div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Target className="h-4 w-4 text-primary" />
-                Main Issue
+                Balance Advice
               </div>
-              <p className="mt-4 text-3xl font-semibold text-foreground">{biggestIssue}</p>
-              <p className="mt-2 text-sm text-muted-foreground">Rule-based diagnosis from current company data.</p>
+              <p className="mt-4 text-lg font-semibold text-foreground">{balanceMessage}</p>
+              <div className="mt-4 rounded-xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">
+                Hold: {positionBuckets.Hold.length} companies. Hold is tracked separately and excluded from the ideal ratio.
+              </div>
             </div>
           </section>
 
@@ -530,9 +649,14 @@ export function StrategyView() {
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-semibold text-foreground">{position}</h3>
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[position]}`}>
-                    {positionBuckets[position].length} / {positionRatios[position]}%
+                    {positionBuckets[position].length} / {position === "Hold" ? "separate" : `${positionRatios[position]}%`}
                   </span>
                 </div>
+                {position === "Hold" && (
+                  <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    Hold is shown separately and is not included in Application Balance.
+                  </p>
+                )}
                 <div className="space-y-3">
                   {positionBuckets[position].length ? (
                     positionBuckets[position].map((company) => <CompanyStrategyCard key={company.id} company={company} onSelect={selectCompany} />)
@@ -592,16 +716,40 @@ export function StrategyView() {
                     </AiItem>
                     <AiItem title="Fit Score" description="Fit with your experience and direction." value={displayValue(selectedCompany.fit_score, " / 100")} why="This estimates fit with your research, development experience, and interests." />
                     <AiItem title="Current Success Probability" description="Estimated passing probability." value={displayValue(selectedCompany.success_probability, "%")} why="This is calculated from the current ES, SPI, and interview status." />
-                    <AiItem title="Main Risk" description="Most important item to prepare." value={selectedCompany.selection_risk && selectedCompany.selection_risk !== "Unknown" ? selectedCompany.selection_risk : "未分析"} why="This shows the current selection area that needs the most attention." />
-                    <AiItem title="System Recommendation" description="System-suggested strategy position." why="This is a suggestion. Your final Strategy Position is selected below.">
+                    <AiItem title="Main Risk" description="Most important item to prepare." value={selectedCompany.selection_risk && selectedCompany.selection_risk !== "Unknown" ? selectedCompany.selection_risk : "Not analyzed"} why="This shows the current selection area that needs the most attention." />
+                    <AiItem title="AI Suggested Position" description="System-suggested strategy position." why="This is a suggestion. Your final Strategy Position is selected below.">
                       {selectedSystemRecommendation ? (
                         <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[selectedSystemRecommendation]}`}>
                           {selectedSystemRecommendation}
                         </span>
                       ) : (
-                        "未分析"
+                        "Not analyzed"
                       )}
                     </AiItem>
+                  </div>
+                  <div className="mt-4 rounded-xl border border-purple-500/30 bg-background/60 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Accepted Research</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {selectedCompany.research_status === "accepted" ? "あり" : "なし"}
+                        </p>
+                      </div>
+                      <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:min-w-[420px]">
+                        <p><span className="font-medium text-foreground">Accepted at:</span> {formatDateTime(selectedCompany.accepted_research_at)}</p>
+                        <p><span className="font-medium text-foreground">Provider:</span> {selectedCompany.research_provider ?? "-"}</p>
+                      </div>
+                    </div>
+                    {selectedCompany.accepted_research_summary ? (
+                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{selectedCompany.accepted_research_summary}</p>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">No accepted AI Research has been linked to this Strategy Memo yet.</p>
+                    )}
+                    {selectedCompany.research_provider === "mock" && (
+                      <p className="mt-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+                        This is demo research generated by MockAIProvider. It does not use real company websites, IR, or news yet.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -658,7 +806,7 @@ export function StrategyView() {
                         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-200 hover:bg-purple-500/15 disabled:opacity-50"
                       >
                         <Check className="h-4 w-4" />
-                        Accept System Suggestion
+                        Use AI Suggested Position
                       </button>
                       <button
                         type="button"
@@ -734,3 +882,4 @@ export function StrategyView() {
     </div>
   )
 }
+

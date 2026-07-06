@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.company import Company
+from app.models.company_research import CompanyResearch
 from app.models.user import User
-from app.schemas.strategy import StrategyMetrics, StrategyRankBucket, StrategyRecommendedAction, StrategySummary
+from app.schemas.strategy import StrategyCompanyRead, StrategyMetrics, StrategyRankBucket, StrategyRecommendedAction, StrategySummary
 
 
 router = APIRouter(prefix="/strategy", tags=["strategy"])
@@ -64,6 +65,38 @@ def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | N
     return probability, rank, risk, action, reason
 
 
+def latest_research_for(company: Company) -> CompanyResearch | None:
+    entries = sorted(company.research_entries, key=lambda item: (item.generated_at, item.id), reverse=True)
+    return entries[0] if entries else None
+
+
+def serialize_strategy_company(company: Company) -> StrategyCompanyRead:
+    research = latest_research_for(company)
+    research_status = "not_generated"
+    provider = None
+    accepted_summary = None
+    accepted_at = None
+
+    if research is not None:
+        provider = research.provider
+        if research.accepted:
+            research_status = "accepted"
+            accepted_summary = research.research_summary
+            accepted_at = research.accepted_at
+        else:
+            research_status = "mock_generated" if research.provider == "mock" else "generated"
+
+    return StrategyCompanyRead.model_validate(
+        {
+            **company.__dict__,
+            "research_status": research_status,
+            "research_provider": provider,
+            "accepted_research_summary": accepted_summary,
+            "accepted_research_at": accepted_at,
+        }
+    )
+
+
 def build_strategy_summary(companies: list[Company]) -> StrategySummary:
     ranks = ["S", "A", "B"]
     total = len(companies)
@@ -76,7 +109,12 @@ def build_strategy_summary(companies: list[Company]) -> StrategySummary:
         count = len(ranked_companies)
         counts[rank] = count
         ratios[rank] = round((count / total) * 100, 1) if total else 0
-        buckets[rank] = StrategyRankBucket(rank=rank, count=count, ratio=ratios[rank], companies=ranked_companies)
+        buckets[rank] = StrategyRankBucket(
+            rank=rank,
+            count=count,
+            ratio=ratios[rank],
+            companies=[serialize_strategy_company(company) for company in ranked_companies],
+        )
 
     es_rejected = sum(1 for company in companies if company.status == "es_rejected")
     spi_rejected = sum(1 for company in companies if company.status == "spi_rejected")

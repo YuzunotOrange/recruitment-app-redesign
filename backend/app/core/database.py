@@ -26,11 +26,12 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    from app.models import company, event, notification, task, user  # noqa: F401
+    from app.models import company, company_research, event, notification, task, user, user_profile  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     ensure_user_columns()
     ensure_event_columns()
+    ensure_company_notebook_columns()
     ensure_reminder_settings_columns()
 
 
@@ -68,6 +69,36 @@ def ensure_event_columns() -> None:
             connection.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS end_time TIME"))
         else:
             connection.execute(text("ALTER TABLE events ADD COLUMN end_time TIME"))
+
+
+def ensure_company_notebook_columns() -> None:
+    inspector = inspect(engine)
+    if "companies" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("companies")}
+    columns = [
+        "es_motivation_draft",
+        "es_research_connection",
+        "es_project_connection",
+        "es_appeal_points",
+        "es_missing_information",
+        "interview_expected_questions",
+        "interview_stories",
+        "interview_reverse_questions",
+        "interview_reflection",
+        "personal_notes",
+    ]
+
+    dialect = engine.dialect.name
+    with engine.begin() as connection:
+        for column_name in columns:
+            if column_name in existing_columns:
+                continue
+            if dialect == "postgresql":
+                connection.execute(text(f"ALTER TABLE companies ADD COLUMN IF NOT EXISTS {column_name} TEXT"))
+            else:
+                connection.execute(text(f"ALTER TABLE companies ADD COLUMN {column_name} TEXT"))
 
 
 def ensure_reminder_settings_columns() -> None:

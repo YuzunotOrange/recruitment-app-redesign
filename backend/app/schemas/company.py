@@ -35,6 +35,16 @@ class CompanyBase(BaseModel):
     recommended_action: str | None = None
     strategy_reason: str | None = None
     user_strategy_note: str | None = None
+    es_motivation_draft: str | None = None
+    es_research_connection: str | None = None
+    es_project_connection: str | None = None
+    es_appeal_points: str | None = None
+    es_missing_information: str | None = None
+    interview_expected_questions: str | None = None
+    interview_stories: str | None = None
+    interview_reverse_questions: str | None = None
+    interview_reflection: str | None = None
+    personal_notes: str | None = None
 
 
 class CompanyCreate(CompanyBase):
@@ -57,6 +67,16 @@ class CompanyUpdate(BaseModel):
     recommended_action: str | None = None
     strategy_reason: str | None = None
     user_strategy_note: str | None = None
+    es_motivation_draft: str | None = None
+    es_research_connection: str | None = None
+    es_project_connection: str | None = None
+    es_appeal_points: str | None = None
+    es_missing_information: str | None = None
+    interview_expected_questions: str | None = None
+    interview_stories: str | None = None
+    interview_reverse_questions: str | None = None
+    interview_reflection: str | None = None
+    personal_notes: str | None = None
 
 
 class CompanyRead(CompanyBase):

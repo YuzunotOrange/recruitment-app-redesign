@@ -62,7 +62,7 @@ def test_notification_list_mark_read_read_all_and_delete(
     assert [item["id"] for item in remaining.json()] == [first.id]
 
 
-def test_future_scheduled_notifications_are_hidden_until_due(
+def test_past_scheduled_notifications_are_hidden_and_future_are_visible(
     client: TestClient,
     db_session: Session,
     auth_headers: dict[str, str],
@@ -73,8 +73,8 @@ def test_future_scheduled_notifications_are_hidden_until_due(
 
     listed = client.get("/notifications", headers=auth_headers)
     assert listed.status_code == 200
-    assert [item["id"] for item in listed.json()] == [past.id]
-    assert future.id not in {item["id"] for item in listed.json()}
+    assert [item["id"] for item in listed.json()] == [future.id]
+    assert past.id not in {item["id"] for item in listed.json()}
 
 
 def test_notification_user_isolation(
@@ -379,7 +379,7 @@ def test_interview_notifications_respect_reminder_settings(
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
-    assert len([item for item in notifications.json() if item["type"] == "interview"]) == 2
+    assert len([item for item in notifications.json() if item["type"] == "interview"]) == 1
 
 
 def test_notification_settings_are_user_scoped(
@@ -430,7 +430,7 @@ def test_notifications_response_filters_disabled_types(
     assert hidden.id not in ids
 
 
-def test_event_notifications_only_show_when_due(
+def test_event_notifications_show_current_and_future_reminders(
     client: TestClient,
     auth_headers: dict[str, str],
     monkeypatch,
@@ -456,7 +456,9 @@ def test_event_notifications_only_show_when_due(
 
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
-    assert [item for item in notifications.json() if item["type"] == "interview"] == []
+    interview_notifications = [item for item in notifications.json() if item["type"] == "interview"]
+    assert len(interview_notifications) == 1
+    assert interview_notifications[0]["scheduled_at"][:10] == "2026-07-14"
 
     monkeypatch.setattr(notification_service, "now_jst", lambda: datetime(2026, 7, 14, 9, 0, tzinfo=JST))
     notifications = client.get("/notifications", headers=auth_headers)
@@ -488,7 +490,9 @@ def test_event_notifications_only_show_when_due(
     assert rescheduled.status_code == 200
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
-    assert [item for item in notifications.json() if item["type"] == "interview"] == []
+    interview_notifications = [item for item in notifications.json() if item["type"] == "interview"]
+    assert len(interview_notifications) == 2
+    assert {item["scheduled_at"][:10] for item in interview_notifications} == {"2026-07-19", "2026-07-20"}
 
     updated = client.put(f"/events/{event_id}", headers=auth_headers, json={"type": "intern", "title": "Summer Internship", "start_date": "2026-07-16", "end_date": "2026-07-16"})
     assert updated.status_code == 200
@@ -543,7 +547,7 @@ def test_event_briefing_and_offer_notifications(client: TestClient, auth_headers
     notifications = client.get("/notifications", headers=auth_headers)
     assert notifications.status_code == 200
     data = notifications.json()
-    assert [item for item in data if item["title"] == "Explanation Session Reminder" and item["type"] == "custom"] == []
+    assert len([item for item in data if item["title"] == "Explanation Session Reminder" and item["type"] == "custom"]) == 1
     assert len([item for item in data if item["title"] == "Offer Received" and item["type"] == "offer"]) == 1
 
 

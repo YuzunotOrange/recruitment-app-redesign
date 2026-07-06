@@ -88,6 +88,103 @@ def test_company_crud(client: TestClient, auth_headers: dict[str, str]):
     assert client.get(f"/companies/{company_id}", headers=auth_headers).status_code == 404
 
 
+def test_company_research_generate_and_accept_updates_strategy(client: TestClient, auth_headers: dict[str, str]):
+    company = create_company(client, auth_headers, name="Research Corp", industry="it", priority="A")
+
+    empty = client.get(f"/companies/{company['id']}/research", headers=auth_headers)
+    assert empty.status_code == 200
+    assert empty.json() is None
+
+    generated = client.post(f"/companies/{company['id']}/research/generate", headers=auth_headers)
+    assert generated.status_code == 201
+    research = generated.json()
+    assert research["company_id"] == company["id"]
+    assert research["provider"] == "mock"
+    assert research["global"] >= 1
+    assert research["accepted"] is False
+    assert len(research["sources"]) == 2
+    assert "final application decision should be made by the user" in research["research_summary"]
+
+    accepted = client.post(
+        f"/companies/{company['id']}/research/decision",
+        headers=auth_headers,
+        json={
+            "decision": "accept",
+            "research_summary": "Edited summary before accepting.",
+            "ai_strategy_position": "Core",
+        },
+    )
+    assert accepted.status_code == 200
+    assert accepted.json()["accepted"] is True
+    assert accepted.json()["research_summary"] == "Edited summary before accepting."
+
+    updated_company = client.get(f"/companies/{company['id']}", headers=auth_headers)
+    assert updated_company.status_code == 200
+    assert updated_company.json()["strategy_reason"] == "Edited summary before accepting."
+    assert "[Strategy Position]\nCore" in updated_company.json()["user_strategy_note"]
+
+
+def test_company_research_reject_does_not_update_company(client: TestClient, auth_headers: dict[str, str]):
+    company = create_company(client, auth_headers, name="Reject Corp", strategy_reason="Keep existing")
+    generated = client.post(f"/companies/{company['id']}/research/generate", headers=auth_headers)
+    assert generated.status_code == 201
+
+    rejected = client.post(
+        f"/companies/{company['id']}/research/decision",
+        headers=auth_headers,
+        json={"decision": "reject"},
+    )
+    assert rejected.status_code == 200
+    assert rejected.json()["accepted"] is False
+
+    unchanged = client.get(f"/companies/{company['id']}", headers=auth_headers)
+    assert unchanged.status_code == 200
+    assert unchanged.json()["strategy_reason"] == "Keep existing"
+
+
+def test_company_notebook_fields_can_be_saved(client: TestClient, auth_headers: dict[str, str]):
+    company = create_company(client, auth_headers, name="Notebook Corp")
+
+    updated = client.put(
+        f"/companies/{company['id']}",
+        headers=auth_headers,
+        json={
+            "es_motivation_draft": "I want to connect my project experience to this company.",
+            "es_research_connection": "Their DX work matches my interests.",
+            "es_project_connection": "CareerTrack can be used as a concrete story.",
+            "es_appeal_points": "Strong customer-facing product culture.",
+            "es_missing_information": "Need to confirm team assignment.",
+            "interview_expected_questions": "Why this company?",
+            "interview_stories": "Talk about web app development.",
+            "interview_reverse_questions": "How are junior engineers supported?",
+            "interview_reflection": "Practice concise answers.",
+            "personal_notes": "Check recent IR before submitting ES.",
+        },
+    )
+
+    assert updated.status_code == 200
+    data = updated.json()
+    assert data["es_motivation_draft"] == "I want to connect my project experience to this company."
+    assert data["interview_expected_questions"] == "Why this company?"
+    assert data["personal_notes"] == "Check recent IR before submitting ES."
+
+    fetched = client.get(f"/companies/{company['id']}", headers=auth_headers)
+    assert fetched.status_code == 200
+    assert fetched.json()["es_project_connection"] == "CareerTrack can be used as a concrete story."
+    assert fetched.json()["interview_reverse_questions"] == "How are junior engineers supported?"
+
+
+def test_company_research_is_user_scoped(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    second_user_headers: dict[str, str],
+):
+    other_company = create_company(client, second_user_headers, name="Other Research Corp")
+
+    assert client.get(f"/companies/{other_company['id']}/research", headers=auth_headers).status_code == 404
+    assert client.post(f"/companies/{other_company['id']}/research/generate", headers=auth_headers).status_code == 404
+
+
 def test_strategy_summary_and_recalculate(client: TestClient, auth_headers: dict[str, str]):
     create_company(client, auth_headers, name="SPI Corp", status="spi_rejected", difficulty_level=4, fit_score=55)
     create_company(client, auth_headers, name="ES Corp", status="es_rejected", difficulty_level=3, fit_score=70)
@@ -172,6 +269,86 @@ def test_empty_dashboard_returns_zero_and_empty_values(client: TestClient, auth_
     assert data["industry_counts"]["it"] == 0
     assert data["upcoming_events"] == []
     assert data["upcoming_deadlines"] == []
+
+
+def test_empty_decision_summary_is_safe(client: TestClient, auth_headers: dict[str, str]):
+    response = client.get("/decision/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["main_issue"] in ["Application Balance", "No Issue"]
+    assert data["today_tasks"]
+    assert data["week_tasks"]
+    assert data["application_balance"]["reach_count"] == 0
+    assert data["risk_monitor"]["deadline"] == "low"
+
+
+def test_decision_summary_prioritizes_spi_rejections(client: TestClient, auth_headers: dict[str, str]):
+    create_company(client, auth_headers, name="SPI A", status="spi_rejected")
+    create_company(client, auth_headers, name="SPI B", status="spi_rejected")
+    create_company(client, auth_headers, name="ES A", status="es_rejected")
+
+    response = client.get("/decision/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["main_issue"] == "SPI"
+    assert data["risk_monitor"]["spi"] == "high"
+    assert any("SPI" in task["title"] or "SPI" in task["reason"] for task in data["today_tasks"])
+
+
+def test_decision_summary_detects_deadline_priority(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(UTC).date()
+    create_company(client, auth_headers, name="Deadline A", es_deadline=today.isoformat())
+    create_company(client, auth_headers, name="Deadline B", es_deadline=(today + timedelta(days=2)).isoformat())
+
+    response = client.get("/decision/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["main_issue"] == "Deadline"
+    assert data["risk_monitor"]["deadline"] == "medium"
+    assert any("deadline" in task["title"].lower() for task in data["today_tasks"])
+
+
+def test_empty_advisor_summary_is_safe(client: TestClient, auth_headers: dict[str, str]):
+    response = client.get("/advisor/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["current_situation"]
+    assert data["todays_mission"]
+    assert data["this_week"]
+    assert data["risk_monitor"]["deadline"] == "low"
+    assert "decides" in data["system_note"]
+
+
+def test_advisor_summary_prioritizes_spi_and_improvements(client: TestClient, auth_headers: dict[str, str]):
+    create_company(client, auth_headers, name="SPI A", status="spi_rejected")
+    create_company(client, auth_headers, name="SPI B", status="spi_rejected")
+    create_company(client, auth_headers, name="SPI C", status="spi_rejected")
+
+    response = client.get("/advisor/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["main_issue"] == "SPI"
+    assert data["risk_monitor"]["spi"] == "high"
+    assert any("SPI" in action["title"] or "SPI" in action["reason"] for action in data["todays_mission"])
+    assert any(action["id"] == "improve-spi" for action in data["suggested_improvements"])
+
+
+def test_advisor_summary_detects_deadline_alerts(client: TestClient, auth_headers: dict[str, str]):
+    today = datetime.now(UTC).date()
+    create_company(client, auth_headers, name="Advisor Deadline", es_deadline=(today + timedelta(days=1)).isoformat())
+
+    response = client.get("/advisor/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["main_issue"] == "Deadline"
+    assert data["deadline_alerts"][0]["title"] == "Advisor Deadline ES deadline"
+    assert data["deadline_alerts"][0]["days_left"] == 1
 
 
 def test_dashboard_summary_reflects_companies_events_and_deadlines(

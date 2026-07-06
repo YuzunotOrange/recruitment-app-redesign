@@ -1,13 +1,22 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.company import CompanyRead
+
+
+class StrategyCompanyRead(CompanyRead):
+    research_status: str = "not_generated"
+    research_provider: str | None = None
+    accepted_research_summary: str | None = None
+    accepted_research_at: datetime | None = None
 
 
 class StrategyRankBucket(BaseModel):
     rank: str
     count: int
     ratio: float
-    companies: list[CompanyRead]
+    companies: list[StrategyCompanyRead]
 
 
 class StrategyRecommendedAction(BaseModel):

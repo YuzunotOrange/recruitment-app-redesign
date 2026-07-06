@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -5,8 +7,14 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.company import Company
+from app.models.company_research import CompanyResearch
 from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.schemas.company import CompanyCreate, CompanyRead, CompanyStatus, CompanyUpdate, Industry, Priority
+from app.schemas.company_fit import CompanyFitAnalysis
+from app.schemas.company_research import CompanyResearchDecisionRequest, CompanyResearchRead
+from app.services.ai_providers import get_ai_provider
+from app.services.company_fit import CompanyFitService
 from app.services.notifications import delete_company_notifications, sync_company_notifications
 
 
@@ -58,6 +66,25 @@ def create_company(
     return company
 
 
+def get_latest_research(company_id: int, user_id: int, db: Session) -> CompanyResearch | None:
+    return db.scalar(
+        select(CompanyResearch)
+        .where(CompanyResearch.company_id == company_id, CompanyResearch.user_id == user_id)
+        .order_by(CompanyResearch.generated_at.desc(), CompanyResearch.id.desc())
+    )
+
+
+def strategy_note_from_research(research: CompanyResearch, position: str) -> str:
+    return "\n\n".join(
+        [
+            f"[Strategy Position]\n{position}",
+            f"[Reason]\n{research.research_summary}",
+            f"[Next Action]\n{research.selection_points}",
+            "[Personal Notes]\nReview AI research, official recruitment information, and personal fit before deciding.",
+        ]
+    )
+
+
 @router.get("/{company_id}", response_model=CompanyRead)
 def read_company(
     company_id: int,
@@ -65,6 +92,80 @@ def read_company(
     current_user: User = Depends(get_current_user),
 ) -> Company:
     return get_owned_company(company_id, current_user.id, db)
+
+
+@router.get("/{company_id}/research", response_model=CompanyResearchRead | None)
+def read_company_research(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CompanyResearch | None:
+    get_owned_company(company_id, current_user.id, db)
+    return get_latest_research(company_id, current_user.id, db)
+
+
+@router.get("/{company_id}/fit", response_model=CompanyFitAnalysis)
+def read_company_fit(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CompanyFitAnalysis:
+    company = get_owned_company(company_id, current_user.id, db)
+    research = get_latest_research(company_id, current_user.id, db)
+    profile = db.scalar(select(UserProfile).where(UserProfile.user_id == current_user.id))
+    peer_companies = list(db.scalars(select(Company).where(Company.user_id == current_user.id)).all())
+    return CompanyFitService().analyze(company=company, research=research, profile=profile, peer_companies=peer_companies)
+
+
+@router.post("/{company_id}/research/generate", response_model=CompanyResearchRead, status_code=status.HTTP_201_CREATED)
+def generate_company_research(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CompanyResearch:
+    company = get_owned_company(company_id, current_user.id, db)
+    generated = get_ai_provider("mock").generate_company_research(company)
+    research = CompanyResearch(
+        company_id=company.id,
+        user_id=current_user.id,
+        **generated.model_dump(mode="json"),
+    )
+    db.add(research)
+    db.commit()
+    db.refresh(research)
+    return research
+
+
+@router.post("/{company_id}/research/decision", response_model=CompanyResearchRead)
+def decide_company_research(
+    company_id: int,
+    payload: CompanyResearchDecisionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CompanyResearch:
+    company = get_owned_company(company_id, current_user.id, db)
+    research = get_latest_research(company_id, current_user.id, db)
+    if research is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company research not found.")
+
+    if payload.research_summary is not None:
+        research.research_summary = payload.research_summary
+    if payload.ai_strategy_position is not None:
+        research.ai_strategy_position = payload.ai_strategy_position
+
+    if payload.decision == "accept":
+        research.accepted = True
+        research.accepted_at = datetime.now(UTC)
+        company.strategy_reason = research.research_summary
+        company.recommended_action = research.selection_points
+        company.user_strategy_note = strategy_note_from_research(research, research.ai_strategy_position)
+    else:
+        research.accepted = False
+        research.accepted_at = None
+
+    db.commit()
+    db.refresh(research)
+    return research
 
 
 @router.put("/{company_id}", response_model=CompanyRead)

@@ -10,7 +10,7 @@ from app.models.notification import Notification, ReminderSettings
 from app.models.user import User
 from app.services.notifications import (
     get_or_create_reminder_settings,
-    is_due_notification,
+    is_current_or_future_notification,
     notification_allowed_by_settings,
     sync_company_notifications,
     sync_event_notifications,
@@ -61,7 +61,7 @@ def list_notifications(
     return [
         notification
         for notification in notifications
-        if is_due_notification(notification.scheduled_at)
+        if is_current_or_future_notification(notification.scheduled_at)
         and notification_allowed_by_settings(notification.type, settings)
     ]
 
