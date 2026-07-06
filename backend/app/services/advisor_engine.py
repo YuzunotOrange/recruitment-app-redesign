@@ -75,6 +75,10 @@ class AdvisorEngine:
         upcoming_events = [event for event in events if event.start_date >= today]
         unread_notifications = sum(1 for notification in notifications if not notification.is_read)
         accepted_research = sum(1 for research in research_entries if research.accepted)
+        researched_company_ids = {research.company_id for research in research_entries}
+        accepted_research_company_ids = {research.company_id for research in research_entries if research.accepted}
+        unresearched_companies = [company for company in companies if company.id not in researched_company_ids]
+        undecided_research_count = len(researched_company_ids - accepted_research_company_ids)
 
         deadline_alerts = self._deadline_alerts(companies=companies, events=events, today=today, week_end=week_end)
         position_counts = {position: 0 for position in STRATEGY_POSITIONS}
@@ -108,6 +112,8 @@ class AdvisorEngine:
             unread_notifications=unread_notifications,
             accepted_research=accepted_research,
             upcoming_events=upcoming_events,
+            unresearched_companies=unresearched_companies,
+            undecided_research_count=undecided_research_count,
         )
         suggested_improvements = self._suggested_improvements(
             es_rejected=es_rejected,
@@ -115,6 +121,8 @@ class AdvisorEngine:
             interview_count=len(interview_events),
             accepted_research=accepted_research,
             missing_portfolio=missing_portfolio,
+            unresearched_count=len(unresearched_companies),
+            undecided_research_count=undecided_research_count,
         )
 
         current_situation = (
@@ -270,8 +278,28 @@ class AdvisorEngine:
         unread_notifications: int,
         accepted_research: int,
         upcoming_events: list[Event],
+        unresearched_companies: list[Company],
+        undecided_research_count: int,
     ) -> list[AdvisorAction]:
         actions: list[AdvisorAction] = []
+        if unresearched_companies:
+            actions.append(
+                AdvisorAction(
+                    id="generate-research",
+                    title=f"Generate research for {unresearched_companies[0].name}",
+                    reason="New companies become actionable after Company Notebook research is generated.",
+                    priority="medium",
+                )
+            )
+        elif undecided_research_count:
+            actions.append(
+                AdvisorAction(
+                    id="review-research-decision",
+                    title="Review pending Company Research",
+                    reason=f"{undecided_research_count} research memo(s) are generated but not accepted or rejected yet.",
+                    priority="medium",
+                )
+            )
         if missing_portfolio:
             actions.append(
                 AdvisorAction(
@@ -327,8 +355,14 @@ class AdvisorEngine:
         interview_count: int,
         accepted_research: int,
         missing_portfolio: list[str],
+        unresearched_count: int,
+        undecided_research_count: int,
     ) -> list[AdvisorAction]:
         improvements: list[AdvisorAction] = []
+        if unresearched_count:
+            improvements.append(AdvisorAction(id="improve-research-generation", title="Generate Company Research for new companies", reason=f"{unresearched_count} company/companies do not have research yet.", priority="medium"))
+        if undecided_research_count:
+            improvements.append(AdvisorAction(id="improve-research-decision", title="Accept, edit, or reject generated research", reason="Research only affects strategy after the user reviews it.", priority="medium"))
         if spi_rejected:
             improvements.append(AdvisorAction(id="improve-spi", title="Strengthen SPI practice routine", reason=f"SPI rejected count: {spi_rejected}.", priority="high" if spi_rejected >= 3 else "medium"))
         if es_rejected:

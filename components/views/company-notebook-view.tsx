@@ -393,35 +393,16 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
         </div>
       </Section>
 
-      <Section title="Your Fit" subtitle="CareerTrack System Analysis compares this company with your User Profile. This is rule-based analysis, not AI-generated advice.">
-        {fit ? (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Overall Fit</p>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-4xl font-semibold text-foreground">{fit.overall_fit_score}%</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{fit.system_note}</p>
-                </div>
-                <p className="max-w-md text-sm text-muted-foreground">Scores are calculated from Profile, Company Research, company basics, and current portfolio risk. Final decisions remain yours.</p>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <FitBar label="Research" item={fit.research_match} />
-              <FitBar label="Skills" item={fit.skill_match} />
-              <FitBar label="Projects" item={fit.project_match} />
-              <FitBar label="Career" item={fit.career_match} />
-              <FitBar label="Global" item={fit.global_match} />
-              <FitBar label="Learning Opportunity" item={fit.learning_opportunity} />
-              <FitBar label="Risk" item={fit.risk_score} tone="risk" />
-            </div>
-          </div>
-        ) : (
-          <p className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">Fit analysis is not available yet.</p>
-        )}
+      <Section title="Selection Status" subtitle="System-calculated status signals. Use them as context, not as a final decision.">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs font-semibold text-primary">System</p><p className="mt-1 text-sm text-muted-foreground">Selection Difficulty</p><p className="mt-1 font-semibold text-foreground">{stars(company.difficulty_level)}</p></div>
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs font-semibold text-primary">System</p><p className="mt-1 text-sm text-muted-foreground">Success Probability</p><p className="mt-1 font-semibold text-foreground">{displayValue(company.success_probability, "%")}</p></div>
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs font-semibold text-primary">System</p><p className="mt-1 text-sm text-muted-foreground">Main Risk</p><p className="mt-1 font-semibold text-foreground">{company.selection_risk && company.selection_risk !== "Unknown" ? company.selection_risk : "Not analyzed"}</p></div>
+          <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3"><p className="text-xs font-semibold text-green-600">User</p><p className="mt-1 text-sm text-muted-foreground">Strategy Position</p><p className="mt-1 font-semibold text-foreground">{form.strategy_position}</p></div>
+        </div>
       </Section>
 
-      <Section title="AI Research" subtitle="AI整理用の企業情報です。最終判断はユーザーが行います。">
+      <Section title="AI Research" subtitle="AI organizes company information. You make the final decision.">
         {!research ? (
           <div className="rounded-xl border border-dashed border-border bg-background/60 p-5">
             <p className="text-sm text-muted-foreground">AI Research has not been generated yet.</p>
@@ -501,6 +482,34 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
         )}
       </Section>
 
+      <Section title="Your Fit" subtitle="CareerTrack System Analysis compares this company with your User Profile. This is rule-based analysis, not AI-generated advice.">
+        {fit ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Overall Fit</p>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-4xl font-semibold text-foreground">{fit.overall_fit_score}%</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{fit.system_note}</p>
+                </div>
+                <p className="max-w-md text-sm text-muted-foreground">Scores are calculated from Profile, Company Research, company basics, and current portfolio risk. Final decisions remain yours.</p>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <FitBar label="Research" item={fit.research_match} />
+              <FitBar label="Skills" item={fit.skill_match} />
+              <FitBar label="Projects" item={fit.project_match} />
+              <FitBar label="Career" item={fit.career_match} />
+              <FitBar label="Global" item={fit.global_match} />
+              <FitBar label="Learning Opportunity" item={fit.learning_opportunity} />
+              <FitBar label="Risk" item={fit.risk_score} tone="risk" />
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">Fit analysis is not available yet.</p>
+        )}
+      </Section>
+
       <Section title="Strategy Decision" subtitle="AI Suggested Position and User Strategy Position are separate. Strategy Dashboard uses only User Strategy Position as the official application strategy.">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
           <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
@@ -514,7 +523,7 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
             </div>
           </div>
           <div className="rounded-2xl border border-pink-500/30 bg-pink-500/5 p-4">
-            <h3 className="font-semibold text-foreground">User Decision / あなたが決定</h3>
+            <h3 className="font-semibold text-foreground">User Decision / You decide</h3>
             <div className="mt-3 grid gap-3">
               <label className="block">
                 <span className="text-sm font-semibold text-foreground">Strategy Position</span>

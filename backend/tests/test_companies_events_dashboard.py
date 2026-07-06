@@ -351,6 +351,23 @@ def test_advisor_summary_detects_deadline_alerts(client: TestClient, auth_header
     assert data["deadline_alerts"][0]["days_left"] == 1
 
 
+def test_advisor_guides_company_research_workflow(client: TestClient, auth_headers: dict[str, str]):
+    company = create_company(client, auth_headers, name="Workflow Corp", industry="it")
+
+    initial = client.get("/advisor/summary", headers=auth_headers)
+    assert initial.status_code == 200
+    initial_data = initial.json()
+    assert any(action["id"] == "generate-research" for action in initial_data["this_week"])
+
+    generated = client.post(f"/companies/{company['id']}/research/generate", headers=auth_headers)
+    assert generated.status_code == 201
+
+    after_generation = client.get("/advisor/summary", headers=auth_headers)
+    assert after_generation.status_code == 200
+    after_data = after_generation.json()
+    assert any(action["id"] == "review-research-decision" for action in after_data["this_week"])
+
+
 def test_dashboard_summary_reflects_companies_events_and_deadlines(
     client: TestClient,
     auth_headers: dict[str, str],

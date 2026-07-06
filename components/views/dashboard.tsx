@@ -85,6 +85,15 @@ type RecentActivity = {
   tone?: Tone
 }
 
+type NotificationItem = {
+  id: number
+  title: string
+  message: string
+  type: "deadline" | "interview" | "internship" | "offer" | "custom" | "system"
+  scheduled_at: string | null
+  is_read: boolean
+}
+
 type DecisionTask = {
   title: string
   reason: string
@@ -978,6 +987,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   const [advisorHiddenIds, setAdvisorHiddenIds] = useState<Set<string>>(new Set())
   const [advisorDoneIds, setAdvisorDoneIds] = useState<Set<string>>(new Set())
   const [advisorTaskIds, setAdvisorTaskIds] = useState<Set<string>>(new Set())
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [strategy, setStrategy] = useState<StrategySummary | null>(null)
   const [companies, setCompanies] = useState<ApiCompany[]>([])
   const [events, setEvents] = useState<ApiEvent[]>([])
@@ -991,18 +1001,20 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
     setError(null)
 
     try {
-      const [summaryData, companyData, eventData, decisionData, advisorData] = await Promise.all([
+      const [summaryData, companyData, eventData, decisionData, advisorData, notificationData] = await Promise.all([
         apiRequest<DashboardSummary>("/dashboard/summary"),
         apiRequest<ApiCompany[]>("/companies"),
         apiRequest<ApiEvent[]>("/events"),
         apiRequest<DecisionSummary>("/decision/summary"),
         apiRequest<AdvisorSummary>("/advisor/summary"),
+        apiRequest<NotificationItem[]>("/notifications"),
       ])
       setSummary(summaryData)
       setCompanies(companyData)
       setEvents(eventData)
       setDecisionSummary(decisionData)
       setAdvisorSummary(advisorData)
+      setNotifications(notificationData)
       try {
         setStrategy(await apiRequest<StrategySummary>("/strategy"))
       } catch {
@@ -1211,6 +1223,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   const clearRate = actionableCount > 0 ? Math.min(100, Math.round((clearedCount / actionableCount) * 100)) : 0
   const hudRingStyle = { "--cyber-clear": `${clearRate}%` } as CSSProperties
   const activeCard = cards.find((card) => card.key === activeDetail)
+  const recentNotifications = notifications.slice(0, 4)
+  const unreadNotificationCount = notifications.filter((notification) => !notification.is_read).length
 
   return (
     <div className="space-y-6">
@@ -1269,6 +1283,147 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
           {error}
         </div>
       )}
+
+      <div className="rounded-2xl border border-primary/30 bg-card p-5 shadow-sm">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              <Target className="h-4 w-4" />
+              <span>Command Center</span>
+            </div>
+            <h3 className="mt-2 text-xl font-semibold text-foreground">Today's Mission</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              CareerTrack prioritizes today's actions from companies, deadlines, events, notifications, and advisor analysis.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 sm:min-w-64">
+            <p className="text-xs font-medium text-muted-foreground">Main Issue</p>
+            <p className="mt-1 text-2xl font-semibold text-primary">{advisorSummary.main_issue}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{advisorSummary.reason}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr_1fr]">
+          <AdvisorActionList
+            title="Today"
+            actions={advisorSummary.todays_mission}
+            hiddenIds={advisorHiddenIds}
+            doneIds={advisorDoneIds}
+            taskIds={advisorTaskIds}
+            onDismiss={dismissAdvisorAction}
+            onMarkDone={markAdvisorActionDone}
+            onAddToTask={addAdvisorActionToTask}
+          />
+          <div className="rounded-2xl border border-border bg-background/55 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-foreground">Upcoming Deadlines</h4>
+              <button type="button" onClick={() => onNavigate("companies")} className="text-xs font-medium text-accent hover:underline">
+                Companies
+              </button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {advisorSummary.deadline_alerts.length ? (
+                advisorSummary.deadline_alerts.slice(0, 4).map((alert) => (
+                  <div key={`${alert.source}-${alert.title}-${alert.due_date}`} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate font-medium text-foreground">{alert.title}</span>
+                      <StatusBadge tone={alert.days_left <= 1 ? "danger" : "warning"}>{alert.days_left}d</StatusBadge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatLocalizedDate(alert.due_date, language)}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-card/70 p-3 text-sm text-muted-foreground">
+                  No upcoming deadlines. Add ES deadlines or deadline events when they appear.
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/55 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-foreground">Upcoming Events</h4>
+              <button type="button" onClick={() => onNavigate("events")} className="text-xs font-medium text-accent hover:underline">
+                Events
+              </button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {upcoming.length ? (
+                upcoming.slice(0, 4).map((event) => {
+                  const date = getEventDate(event)
+                  return (
+                    <div key={event.id} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
+                      <p className="truncate font-medium text-foreground">{event.title}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {date ? formatLocalizedDate(date, language) : "-"} / {getCompanyName(event)} / {event.time ?? "-"}
+                      </p>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-card/70 p-3 text-sm text-muted-foreground">
+                  No events yet. Create an event to make your next action concrete.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-background/55 p-4">
+            <h4 className="text-sm font-semibold text-foreground">Application Balance</h4>
+            <div className="mt-3 space-y-3">
+              {[
+                ["Reach", advisorSummary.application_balance.reach_ratio, 30],
+                ["Core", advisorSummary.application_balance.core_ratio, 50],
+                ["Safe", advisorSummary.application_balance.safe_ratio, 20],
+              ].map(([label, current, ideal]) => (
+                <div key={label as string}>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{label}</span>
+                    <span>{current}% / ideal {ideal}%</span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(Number(current), 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 rounded-xl border border-border bg-card/70 p-3 text-xs leading-relaxed text-muted-foreground">
+              {advisorSummary.application_balance.recommendation}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/55 p-4">
+            <h4 className="text-sm font-semibold text-foreground">Current Situation</h4>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Companies</p><p className="text-xl font-semibold text-foreground">{summary.kpis.total_companies}</p></div>
+              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Interviews</p><p className="text-xl font-semibold text-foreground">{summary.kpis.interviews}</p></div>
+              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Offers</p><p className="text-xl font-semibold text-foreground">{summary.kpis.offers}</p></div>
+              <div className="rounded-xl border border-border bg-card/70 p-3"><p className="text-xs text-muted-foreground">Due {"<=7d"}</p><p className="text-xl font-semibold text-foreground">{summary.kpis.deadline_soon}</p></div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/55 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm font-semibold text-foreground">Recent Notifications</h4>
+              <StatusBadge tone={unreadNotificationCount ? "warning" : "neutral"}>{unreadNotificationCount} unread</StatusBadge>
+            </div>
+            <div className="mt-3 space-y-2">
+              {recentNotifications.length ? (
+                recentNotifications.map((notification) => (
+                  <div key={notification.id} className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      {!notification.is_read && <span className="h-2 w-2 rounded-full bg-primary" />}
+                      <p className="truncate font-medium text-foreground">{notification.title}</p>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-xl border border-dashed border-border bg-card/70 p-3 text-sm text-muted-foreground">No notifications.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
