@@ -1,19 +1,14 @@
-﻿"use client"
+"use client"
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
-  AlertTriangle,
   BarChart3,
   BrainCircuit,
-  Check,
   CircleHelp,
-  Edit3,
   RefreshCw,
   Save,
   Target,
-  Trophy,
   X,
-  XCircle,
 } from "lucide-react"
 import { apiRequest } from "@/lib/api"
 import { companyStatusMeta, industryMeta, type CompanyStatus, type Industry, type Priority } from "@/lib/data"
@@ -99,43 +94,9 @@ const positionTone: Record<StrategyPosition, string> = {
   Hold: "border-zinc-400/50 bg-zinc-500/10 text-zinc-700 dark:text-zinc-200",
 }
 
-const urgencyTone: Record<string, string> = {
-  high: "bg-destructive/10 text-destructive ring-destructive/20",
-  medium: "bg-warning/15 text-warning-foreground ring-warning/20",
-  low: "bg-success/10 text-success ring-success/20",
-}
-
-const researchStatusLabel: Record<StrategyCompany["research_status"], string> = {
-  not_generated: "Not generated",
-  mock_generated: "Mock generated",
-  generated: "Generated",
-  accepted: "Accepted",
-  rejected: "Rejected",
-}
-
-const researchStatusTone: Record<StrategyCompany["research_status"], string> = {
-  not_generated: "bg-muted text-muted-foreground ring-border",
-  mock_generated: "bg-warning/10 text-warning-foreground ring-warning/30",
-  generated: "bg-primary/10 text-primary ring-primary/30",
-  accepted: "bg-success/10 text-success ring-success/30",
-  rejected: "bg-destructive/10 text-destructive ring-destructive/30",
-}
-
 function bilingual(language: LanguageMode, value: { en: string; ja: string }) {
   if (language === "ja-en") return `${value.en} / ${value.ja}`
   return text(language, value)
-}
-
-const researchStatusCopy: Record<StrategyCompany["research_status"], { en: string; ja: string }> = {
-  not_generated: { en: "Not generated", ja: "\u672a\u751f\u6210" },
-  mock_generated: { en: "Mock generated", ja: "Mock\u751f\u6210" },
-  generated: { en: "Generated", ja: "\u751f\u6210\u6e08\u307f" },
-  accepted: { en: "Accepted", ja: "\u627f\u8a8d\u6e08\u307f" },
-  rejected: { en: "Rejected", ja: "\u5374\u4e0b" },
-}
-
-function researchStatusText(status: StrategyCompany["research_status"], language: LanguageMode) {
-  return bilingual(language, researchStatusCopy[status])
 }
 
 const strategyCopy = {
@@ -170,11 +131,8 @@ const strategyCopy = {
   holdTracked: { en: "Hold is tracked separately and excluded from the ideal ratio.", ja: "Hold\u306f\u5225\u67a0\u3067\u7ba1\u7406\u3057\u3001\u7406\u60f3\u6bd4\u7387\u304b\u3089\u9664\u5916\u3057\u307e\u3059\u3002" },
   noCompanies: { en: "No companies yet.", ja: "\u4f01\u696d\u306f\u307e\u3060\u3042\u308a\u307e\u305b\u3093\u3002" },
   companyRank: { en: "Company Rank", ja: "\u4f01\u696d\u5fd7\u671b\u5ea6" },
-  mainRisk: { en: "Main Risk", ja: "\u4e3b\u306a\u30ea\u30b9\u30af" },
-  notAnalyzed: { en: "Not analyzed", ja: "\u672a\u5206\u6790" },
-  success: { en: "Success", ja: "\u901a\u904e\u898b\u8fbc\u307f" },
-  aiResearch: { en: "AI Research", ja: "AI\u5206\u6790" },
   nextAction: { en: "Next Action", ja: "\u6b21\u306e\u884c\u52d5" },
+  esDeadline: { en: "ES Deadline", ja: "ES\u7de0\u5207" },
   notSet: { en: "Not set", ja: "\u672a\u8a2d\u5b9a" },
   openMemo: { en: "Open Memo / Edit Strategy", ja: "\u30e1\u30e2\u3092\u958b\u304f / \u6226\u7565\u3092\u7de8\u96c6" },
   companies: { en: "companies", ja: "\u793e" },
@@ -183,12 +141,10 @@ const strategyCopy = {
   separate: { en: "separate", ja: "\u5225\u67a0" },
   strategyMemo: { en: "Strategy Memo", ja: "\u6226\u7565\u30e1\u30e2" },
   memoSubtitle: {
-    en: "Read the system analysis, then decide your own application strategy.",
-    ja: "\u30b7\u30b9\u30c6\u30e0\u5206\u6790\u3092\u78ba\u8a8d\u3057\u305f\u3046\u3048\u3067\u3001\u6700\u7d42\u7684\u306a\u5fdc\u52df\u6226\u7565\u306f\u3042\u306a\u305f\u304c\u6c7a\u5b9a\u3057\u307e\u3059\u3002",
+    en: "Only you decide Strategy Position, Reason, Next Action, and Personal Notes.",
+    ja: "Strategy Position、Reason、Next Action、Personal Notesはあなたが決定します。",
   },
   close: { en: "Close", ja: "\u9589\u3058\u308b" },
-  recommendedActions: { en: "Recommended Actions", ja: "\u304a\u3059\u3059\u3081\u30a2\u30af\u30b7\u30e7\u30f3" },
-  noActions: { en: "No extra recommended actions.", ja: "\u8ffd\u52a0\u306e\u304a\u3059\u3059\u3081\u30a2\u30af\u30b7\u30e7\u30f3\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
 }
 function emptySummary(): StrategySummary {
   return {
@@ -220,29 +176,10 @@ function writeUserStrategyNote(form: StrategyMemoForm) {
   ].join("\n\n")
 }
 
-function hasSystemAnalysis(company: StrategyCompany) {
-  return (
-    company.difficulty_level != null ||
-    company.fit_score != null ||
-    company.success_probability != null ||
-    Boolean(company.selection_risk && company.selection_risk !== "Unknown") ||
-    Boolean(company.strategy_rank)
-  )
-}
-
-function systemRecommendation(company: StrategyCompany): StrategyPosition | null {
-  if (!hasSystemAnalysis(company)) return null
-  if (company.status === "declined" || (company.success_probability != null && company.success_probability < 30)) return "Hold"
-  if (company.strategy_rank === "S") return "Reach"
-  if (company.strategy_rank === "A") return "Core"
-  if (company.strategy_rank === "B") return "Safe"
-  return "Core"
-}
-
 function strategyPositionOf(company: StrategyCompany): StrategyPosition {
   const storedPosition = readMemoBlock(company.user_strategy_note, "Strategy Position") as StrategyPosition
   if (strategyPositions.includes(storedPosition)) return storedPosition
-  return systemRecommendation(company) ?? "Hold"
+  return "Hold"
 }
 
 function toMemoForm(company: StrategyCompany): StrategyMemoForm {
@@ -264,30 +201,6 @@ function formatDate(dateIso: string | null) {
   const [year, month, day] = dateIso.split("-").map(Number)
   if (!year || !month || !day) return dateIso
   return new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(year, month - 1, day))
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return "-"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
-
-function displayValue(value: number | string | null | undefined, suffix = "", language: LanguageMode = "en") {
-  if (value == null || value === "") return bilingual(language, strategyCopy.notAnalyzed)
-  return `${value}${suffix}`
-}
-
-function difficultyStars(level: number | null, language: LanguageMode = "en") {
-  if (level == null) return bilingual(language, strategyCopy.notAnalyzed)
-  const safeLevel = Math.max(1, Math.min(5, level))
-  return `${"★".repeat(safeLevel)}${"☆".repeat(5 - safeLevel)}`
 }
 
 function interviewStatus(status: CompanyStatus, language: LanguageMode = "en") {
@@ -539,16 +452,7 @@ function CompanyStrategyCard({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <StatusBadge tone={statusMeta.tone}>{text(language, statusMeta)}</StatusBadge>
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          {bilingual(language, strategyCopy.mainRisk)}:{" "}
-          {company.selection_risk && company.selection_risk !== "Unknown"
-            ? company.selection_risk
-            : bilingual(language, strategyCopy.notAnalyzed)}
-        </span>
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-          {bilingual(language, strategyCopy.success)}: {displayValue(company.success_probability, "%", language)}
-        </span>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${researchStatusTone[company.research_status]}`}>
-          {bilingual(language, strategyCopy.aiResearch)}: {researchStatusText(company.research_status, language)}
+          {bilingual(language, strategyCopy.esDeadline)}: {formatDate(company.es_deadline)}
         </span>
       </div>
       <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
@@ -655,8 +559,6 @@ export function StrategyView() {
   const biggestIssue = useMemo(() => mainIssueText(summary.metrics, language), [summary.metrics, language])
   const balanceMessage = useMemo(() => balanceAdvice(positionBuckets, language), [positionBuckets, language])
 
-  const selectedSystemRecommendation = selectedCompany ? systemRecommendation(selectedCompany) : null
-
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -686,7 +588,7 @@ export function StrategyView() {
 
       {!loading && (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
             <SummaryCard label={bilingual(language, strategyCopy.totalCompanies)} value={summary.metrics.total_companies} description={bilingual(language, strategyCopy.registeredCompanies)} />
             <SummaryCard label="Reach" value={positionBuckets.Reach.length} description={bilingual(language, strategyCopy.strategyPosition)} />
             <SummaryCard label="Core" value={positionBuckets.Core.length} description={bilingual(language, strategyCopy.strategyPosition)} />
@@ -708,7 +610,7 @@ export function StrategyView() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {bilingual(language, strategyCopy.balanceSubtitle)}
               </p>
-              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              <div className="mt-4 grid gap-3 xl:grid-cols-3">
                 {activeStrategyPositions.map((position) => (
                   <BalanceMeter
                     key={position}
@@ -733,7 +635,7 @@ export function StrategyView() {
             </div>
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
             {strategyPositions.map((position) => (
               <div key={position} className="rounded-2xl border border-border bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -787,7 +689,7 @@ export function StrategyView() {
               <div className="mt-4 space-y-5">
                 <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4">
                   <SectionHeader title="Company Information" description="Basic company fields from the Company Add/Edit form. Read only here." tone="readonly" />
-                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
                     <ReadOnlyItem title="Company Rank" description="Preference level: how much you want this company." value={selectedCompany.priority} why="Company Rank is S/A/B/C preference. It is not the strategy position." />
                     <ReadOnlyItem title="Industry" description="Registered industry." value={industryMeta[selectedCompany.industry]?.en ?? selectedCompany.industry} />
                     <ReadOnlyItem title="Current Status" description="Current selection status." why="This comes from the company status field.">
@@ -798,61 +700,14 @@ export function StrategyView() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
-                  <SectionHeader title="AI / System Analysis" description="System-calculated analysis. These fields are read only." tone="ai" />
-                  <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <AiItem title="Selection Difficulty" description="Company selection difficulty." why="This is the company's selection difficulty, not your ability.">
-                      <span className="text-lg tracking-wide text-warning">{difficultyStars(selectedCompany.difficulty_level)}</span>
-                    </AiItem>
-                    <AiItem title="Fit Score" description="Fit with your experience and direction." value={displayValue(selectedCompany.fit_score, " / 100")} why="This estimates fit with your research, development experience, and interests." />
-                    <AiItem title="Current Success Probability" description="Estimated passing probability." value={displayValue(selectedCompany.success_probability, "%")} why="This is calculated from the current ES, SPI, and interview status." />
-                    <AiItem title="Main Risk" description="Most important item to prepare." value={selectedCompany.selection_risk && selectedCompany.selection_risk !== "Unknown" ? selectedCompany.selection_risk : "Not analyzed"} why="This shows the current selection area that needs the most attention." />
-                    <AiItem title="AI Suggested Position" description="System-suggested strategy position." why="This is a suggestion. Your final Strategy Position is selected below.">
-                      {selectedSystemRecommendation ? (
-                        <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${positionTone[selectedSystemRecommendation]}`}>
-                          {selectedSystemRecommendation}
-                        </span>
-                      ) : (
-                        "Not analyzed"
-                      )}
-                    </AiItem>
-                  </div>
-                  <div className="mt-4 rounded-xl border border-purple-500/30 bg-background/60 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Accepted Research</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {selectedCompany.research_status === "accepted"
-                            ? bilingual(language, { en: "Yes", ja: "\u3042\u308a" })
-                            : bilingual(language, { en: "No", ja: "\u306a\u3057" })}
-                        </p>
-                      </div>
-                      <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:min-w-[420px]">
-                        <p><span className="font-medium text-foreground">Accepted at:</span> {formatDateTime(selectedCompany.accepted_research_at)}</p>
-                        <p><span className="font-medium text-foreground">Provider:</span> {selectedCompany.research_provider ?? "-"}</p>
-                      </div>
-                    </div>
-                    {selectedCompany.accepted_research_summary ? (
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{selectedCompany.accepted_research_summary}</p>
-                    ) : (
-                      <p className="mt-3 text-sm text-muted-foreground">No accepted AI Research has been linked to this Strategy Memo yet.</p>
-                    )}
-                    {selectedCompany.research_provider === "mock" && (
-                      <p className="mt-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
-                        This is demo research generated by MockAIProvider. It does not use real company websites, IR, or news yet.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-pink-500/30 bg-pink-500/5 p-4">
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                   <SectionHeader title="Your Decision" description="Only these fields are edited by you." tone="user" />
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <UserField title="Strategy Position" description="Reach, Core, Safe, or Hold." why="Strategy Position is your portfolio role for this application. It is separate from Company Rank.">
                       <select
                         value={memoForm.strategy_position}
                         onChange={(event) => setMemoForm((current) => current && ({ ...current, strategy_position: event.target.value as StrategyPosition }))}
-                        className="min-h-11 w-full rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-pink-500/40"
+                        className="min-h-11 w-full rounded-lg border border-emerald-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-emerald-500/40"
                       >
                         <option value="Reach">Reach</option>
                         <option value="Core">Core</option>
@@ -866,7 +721,7 @@ export function StrategyView() {
                         onChange={(event) => setMemoForm((current) => current && ({ ...current, reason: event.target.value }))}
                         placeholder="Example: First choice. Difficult, but I want to challenge it."
                         rows={4}
-                        className="min-h-28 w-full resize-y rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-pink-500/40"
+                        className="min-h-28 w-full resize-y rounded-lg border border-emerald-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/40"
                       />
                     </UserField>
                     <UserField title="Next Action" description="The next concrete action for this company." why="Keep it specific enough to act on this week.">
@@ -875,7 +730,7 @@ export function StrategyView() {
                         onChange={(event) => setMemoForm((current) => current && ({ ...current, next_action: event.target.value }))}
                         placeholder="Example: Focus on SPI practice."
                         rows={4}
-                        className="min-h-28 w-full resize-y rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-pink-500/40"
+                        className="min-h-28 w-full resize-y rounded-lg border border-emerald-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/40"
                       />
                     </UserField>
                     <UserField title="Personal Notes" description="Free notes for briefings, alumni visits, and interviews." why="Keep small observations here so you can review them before interviews.">
@@ -884,39 +739,12 @@ export function StrategyView() {
                         onChange={(event) => setMemoForm((current) => current && ({ ...current, personal_notes: event.target.value }))}
                         placeholder={"Example: Ask for an alumni visit.\nEmphasize research experience in interviews."}
                         rows={5}
-                        className="min-h-32 w-full resize-y rounded-lg border border-pink-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-pink-500/40"
+                        className="min-h-32 w-full resize-y rounded-lg border border-emerald-500/30 bg-card px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-emerald-500/40"
                       />
                     </UserField>
                   </div>
 
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <button
-                        type="button"
-                        disabled={!selectedSystemRecommendation}
-                        onClick={() => selectedSystemRecommendation && setMemoForm((current) => current && ({ ...current, strategy_position: selectedSystemRecommendation }))}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-500/15 disabled:opacity-50 dark:text-purple-200"
-                      >
-                        <Check className="h-4 w-4" />
-                        Use AI Suggested Position
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMemoForm((current) => current && ({ ...current, reason: current.reason || "I will review the system suggestion and adjust it with my own judgment." }))}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-200"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                        Edit Before Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMemoForm((current) => current && ({ ...current, strategy_position: "Hold", reason: current.reason || "Hold for now and review after collecting more information." }))}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-500/15 dark:text-zinc-200"
-                      >
-                        <XCircle className="h-4 w-4" />
-                        Reject Suggestion
-                      </button>
-                    </div>
+                  <div className="mt-4 flex justify-end">
                     <button
                       type="button"
                       onClick={saveMemo}
@@ -942,37 +770,8 @@ export function StrategyView() {
             </section>
           )}
 
-          <section className="rounded-2xl border border-border bg-card p-4">
-            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Trophy className="h-4 w-4 text-warning" />
-              Recommended Actions
-            </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {summary.recommended_actions.length ? (
-                summary.recommended_actions.map((action, index) => (
-                  <article key={`${action.title}-${index}`} className="rounded-xl border border-border bg-background/70 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-semibold text-foreground">{action.title}</h3>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${urgencyTone[action.urgency] ?? urgencyTone.low}`}>
-                        {action.urgency}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">{action.reason}</p>
-                    <p className="mt-3 text-sm font-medium text-foreground">{action.action}</p>
-                  </article>
-                ))
-              ) : (
-                <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                  <AlertTriangle className="mb-2 h-4 w-4" />
-                  No extra recommended actions.
-                </div>
-              )}
-            </div>
-          </section>
         </>
       )}
     </div>
   )
 }
-
-

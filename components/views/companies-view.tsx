@@ -105,24 +105,13 @@ function readMemoBlock(source: string | null | undefined, label: string) {
   return match?.[1]?.trim() ?? ""
 }
 
-function systemStrategyPosition(company: ApiCompany): StrategyPosition {
-  if (company.status === "declined" || (company.success_probability != null && company.success_probability < 30)) return "Hold"
-  if (company.strategy_rank === "S") return "Reach"
-  if (company.strategy_rank === "B") return "Safe"
-  return "Core"
-}
-
 function strategyPositionOf(company: ApiCompany): StrategyPosition {
   const stored = readMemoBlock(company.user_strategy_note, "Strategy Position") as StrategyPosition
-  return strategyPositions.includes(stored) ? stored : systemStrategyPosition(company)
+  return strategyPositions.includes(stored) ? stored : "Hold"
 }
 
 function mainRiskOf(company: ApiCompany) {
   return company.selection_risk && company.selection_risk !== "Unknown" ? company.selection_risk : "-"
-}
-
-function successProbabilityOf(company: ApiCompany) {
-  return company.success_probability == null ? "-" : `${company.success_probability}%`
 }
 
 export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId: number) => void }) {
@@ -478,10 +467,6 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                         <span className="text-muted-foreground">Main risk</span>
                         <span className="text-foreground">{mainRiskOf(company)}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">Success probability</span>
-                        <span className="text-foreground">{successProbabilityOf(company)}</span>
-                      </div>
                     </div>
                     <div className="mt-4 flex gap-2">
                       <select
@@ -512,7 +497,6 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                     <th className="px-4 py-3 font-medium">ES deadline</th>
                     <th className="px-4 py-3 font-medium">Strategy Position</th>
                     <th className="px-4 py-3 font-medium">Main Risk</th>
-                    <th className="px-4 py-3 font-medium">Success Probability</th>
                     <th className="px-4 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -555,7 +539,6 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                           </span>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{mainRiskOf(company)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{successProbabilityOf(company)}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => onOpenNotebook?.(company.id)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-card px-3 py-2 text-muted-foreground ring-1 ring-border hover:text-primary" aria-label="Open notebook">

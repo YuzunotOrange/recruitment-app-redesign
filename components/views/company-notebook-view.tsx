@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { ArrowLeft, BrainCircuit, Check, ExternalLink, Loader2, Save, XCircle } from "lucide-react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { ArrowLeft, BrainCircuit, ExternalLink, Loader2, Save } from "lucide-react"
 import { apiRequest } from "@/lib/api"
 import { companyStatusMeta, industryMeta, type CompanyStatus, type Industry, type Priority } from "@/lib/data"
 import { formatLocalizedDate, useLanguagePreference } from "@/lib/language"
@@ -73,23 +73,6 @@ type CompanyResearch = {
   accepted_at: string | null
 }
 
-type FitScore = {
-  score: number
-  reason: string
-}
-
-type CompanyFitAnalysis = {
-  overall_fit_score: number
-  research_match: FitScore
-  skill_match: FitScore
-  project_match: FitScore
-  career_match: FitScore
-  global_match: FitScore
-  learning_opportunity: FitScore
-  risk_score: FitScore
-  system_note: string
-}
-
 type DecisionForm = {
   strategy_position: StrategyPosition
   reason: string
@@ -125,16 +108,9 @@ function writeUserStrategyNote(form: DecisionForm) {
   ].join("\n\n")
 }
 
-function systemRecommendation(company: CompanyNotebook): StrategyPosition {
-  if (company.status === "declined" || (company.success_probability != null && company.success_probability < 30)) return "Hold"
-  if (company.strategy_rank === "S") return "Reach"
-  if (company.strategy_rank === "B") return "Safe"
-  return "Core"
-}
-
 function strategyPositionOf(company: CompanyNotebook): StrategyPosition {
   const stored = readMemoBlock(company.user_strategy_note, "Strategy Position") as StrategyPosition
-  return strategyPositions.includes(stored) ? stored : systemRecommendation(company)
+  return strategyPositions.includes(stored) ? stored : "Hold"
 }
 
 function toDecisionForm(company: CompanyNotebook): DecisionForm {
@@ -161,12 +137,6 @@ function stars(score: number | null | undefined) {
   const safeScore = Math.max(1, Math.min(5, score))
   return `${"★".repeat(safeScore)}${"☆".repeat(5 - safeScore)}`
 }
-
-function displayValue(value: number | string | null | undefined, suffix = "") {
-  if (value == null || value === "") return "Not analyzed"
-  return `${value}${suffix}`
-}
-
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <section className="rounded-2xl border border-border bg-card p-4">
@@ -204,46 +174,26 @@ function TextAreaField({
   )
 }
 
-function FitBar({ label, item, tone = "default" }: { label: string; item: FitScore; tone?: "default" | "risk" }) {
-  const colorClass = tone === "risk" ? "bg-destructive" : "bg-primary"
-  return (
-    <div className="rounded-xl border border-border bg-background/60 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className="font-mono text-sm font-semibold text-foreground">{item.score}%</p>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-        <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${Math.max(0, Math.min(100, item.score))}%` }} />
-      </div>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{item.reason}</p>
-    </div>
-  )
-}
-
 export function CompanyNotebookView({ companyId, onBack }: { companyId: number; onBack: () => void }) {
   const language = useLanguagePreference()
   const [company, setCompany] = useState<CompanyNotebook | null>(null)
   const [research, setResearch] = useState<CompanyResearch | null>(null)
-  const [fit, setFit] = useState<CompanyFitAnalysis | null>(null)
   const [form, setForm] = useState<DecisionForm | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [researchSaving, setResearchSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadNotebook = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [companyData, researchData, fitData] = await Promise.all([
+      const [companyData, researchData] = await Promise.all([
         apiRequest<CompanyNotebook>(`/companies/${companyId}`),
         apiRequest<CompanyResearch | null>(`/companies/${companyId}/research`),
-        apiRequest<CompanyFitAnalysis>(`/companies/${companyId}/fit`),
       ])
       setCompany(companyData)
       setResearch(researchData)
-      setFit(fitData)
       setForm(toDecisionForm(companyData))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load company notebook.")
@@ -256,23 +206,12 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
     loadNotebook()
   }, [loadNotebook])
 
-  const aiSuggestedPosition = useMemo(() => {
-    if (research) return research.ai_strategy_position
-    return company ? systemRecommendation(company) : "Hold"
-  }, [company, research])
-
-  async function refreshFit() {
-    const updatedFit = await apiRequest<CompanyFitAnalysis>(`/companies/${companyId}/fit`)
-    setFit(updatedFit)
-  }
-
   async function generateResearch() {
     setGenerating(true)
     setError(null)
     try {
       const generated = await apiRequest<CompanyResearch>(`/companies/${companyId}/research/generate`, { method: "POST" })
       setResearch(generated)
-      await refreshFit()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate AI research.")
     } finally {
@@ -313,31 +252,6 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
     }
   }
 
-  async function decideResearch(decision: "accept" | "reject") {
-    if (!research) return
-    setResearchSaving(true)
-    setError(null)
-    try {
-      const decided = await apiRequest<CompanyResearch>(`/companies/${companyId}/research/decision`, {
-        method: "POST",
-        body: JSON.stringify({
-          decision,
-          research_summary: research.research_summary,
-          ai_strategy_position: research.ai_strategy_position,
-        }),
-      })
-      setResearch(decided)
-      const updated = await apiRequest<CompanyNotebook>(`/companies/${companyId}`)
-      setCompany(updated)
-      setForm(toDecisionForm(updated))
-      requestAppDataRefresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save AI research decision.")
-    } finally {
-      setResearchSaving(false)
-    }
-  }
-
   if (loading) {
     return <div className="rounded-2xl border border-border bg-card px-4 py-8 text-sm text-muted-foreground">Loading Company Notebook...</div>
   }
@@ -367,7 +281,7 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
             Back to Companies
           </button>
           <h1 className="mt-3 text-2xl font-semibold text-foreground">{company.name} Notebook</h1>
-          <p className="mt-1 text-sm text-muted-foreground">AI analyzes, CareerTrack compares, and you make the final decision.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Company information, research sources, strategy notes, and your preparation memos are organized here.</p>
         </div>
         <button
           type="button"
@@ -390,15 +304,6 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
           <div className="rounded-xl border border-border bg-background/60 p-3"><p className="text-xs text-muted-foreground">Current Status</p><div className="mt-1"><StatusBadge tone={statusMeta.tone}>{statusMeta.en}</StatusBadge></div></div>
           <div className="rounded-xl border border-border bg-background/60 p-3"><p className="text-xs text-muted-foreground">ES Deadline</p><p className="mt-1 font-semibold text-foreground">{company.es_deadline ? formatLocalizedDate(company.es_deadline, language) : "-"}</p></div>
           <div className="rounded-xl border border-border bg-background/60 p-3 md:col-span-2 xl:col-span-3"><p className="text-xs text-muted-foreground">Note</p><p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{company.note || "-"}</p></div>
-        </div>
-      </Section>
-
-      <Section title="Selection Status" subtitle="System-calculated status signals. Use them as context, not as a final decision.">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs font-semibold text-primary">System</p><p className="mt-1 text-sm text-muted-foreground">Selection Difficulty</p><p className="mt-1 font-semibold text-foreground">{stars(company.difficulty_level)}</p></div>
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs font-semibold text-primary">System</p><p className="mt-1 text-sm text-muted-foreground">Success Probability</p><p className="mt-1 font-semibold text-foreground">{displayValue(company.success_probability, "%")}</p></div>
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="text-xs font-semibold text-primary">System</p><p className="mt-1 text-sm text-muted-foreground">Main Risk</p><p className="mt-1 font-semibold text-foreground">{company.selection_risk && company.selection_risk !== "Unknown" ? company.selection_risk : "Not analyzed"}</p></div>
-          <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3"><p className="text-xs font-semibold text-green-600">User</p><p className="mt-1 text-sm text-muted-foreground">Strategy Position</p><p className="mt-1 font-semibold text-foreground">{form.strategy_position}</p></div>
         </div>
       </Section>
 
@@ -430,7 +335,6 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 ["Salary", research.salary_level],
-                ["Selection Difficulty", research.difficulty_level],
                 ["Stability", research.stability],
                 ["Growth", research.growth],
                 ["Global", research.global],
@@ -445,12 +349,12 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
             </div>
             <div className="grid gap-3 lg:grid-cols-2">
               {[
-                ["Recommended For", research.recommended_people],
+                ["Required Skills / Candidate Profile", research.recommended_people],
                 ["Selection Process", research.selection_process],
                 ["Selection Points", research.selection_points],
                 ["Strengths", research.strengths],
                 ["Weaknesses", research.weaknesses],
-                ["AI Summary", research.research_summary],
+                ["Research Summary", research.research_summary],
               ].map(([label, value]) => (
                 <article key={label} className="rounded-xl border border-border bg-background/60 p-4">
                   <h3 className="font-semibold text-foreground">{label}</h3>
@@ -463,10 +367,6 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
                 <div>
                   <h3 className="font-semibold text-foreground">Information Sources</h3>
                   <p className="mt-1 text-xs text-muted-foreground">Provider: {research.provider} / Generated: {formatLocalizedDate(research.generated_at.slice(0, 10), language)}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => decideResearch("accept")} disabled={researchSaving} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"><Check className="h-4 w-4" />Accept</button>
-                  <button type="button" onClick={() => decideResearch("reject")} disabled={researchSaving} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive disabled:opacity-50"><XCircle className="h-4 w-4" />Reject</button>
                 </div>
               </div>
               <div className="mt-3 space-y-2">
@@ -482,63 +382,22 @@ export function CompanyNotebookView({ companyId, onBack }: { companyId: number; 
         )}
       </Section>
 
-      <Section title="Your Fit" subtitle="CareerTrack System Analysis compares this company with your User Profile. This is rule-based analysis, not AI-generated advice.">
-        {fit ? (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Overall Fit</p>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-4xl font-semibold text-foreground">{fit.overall_fit_score}%</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{fit.system_note}</p>
-                </div>
-                <p className="max-w-md text-sm text-muted-foreground">Scores are calculated from Profile, Company Research, company basics, and current portfolio risk. Final decisions remain yours.</p>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <FitBar label="Research" item={fit.research_match} />
-              <FitBar label="Skills" item={fit.skill_match} />
-              <FitBar label="Projects" item={fit.project_match} />
-              <FitBar label="Career" item={fit.career_match} />
-              <FitBar label="Global" item={fit.global_match} />
-              <FitBar label="Learning Opportunity" item={fit.learning_opportunity} />
-              <FitBar label="Risk" item={fit.risk_score} tone="risk" />
-            </div>
-          </div>
-        ) : (
-          <p className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">Fit analysis is not available yet.</p>
-        )}
-      </Section>
-
-      <Section title="Strategy Decision" subtitle="AI Suggested Position and User Strategy Position are separate. Strategy Dashboard uses only User Strategy Position as the official application strategy.">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-4">
-            <h3 className="font-semibold text-foreground">AI / System Analysis</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Selection Difficulty</p><p className="mt-1 font-semibold text-warning">{stars(company.difficulty_level)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Fit Score</p><p className="mt-1 font-semibold text-foreground">{displayValue(company.fit_score, " / 100")}</p></div>
-              <div><p className="text-xs text-muted-foreground">Success Probability</p><p className="mt-1 font-semibold text-foreground">{displayValue(company.success_probability, "%")}</p></div>
-              <div><p className="text-xs text-muted-foreground">Main Risk</p><p className="mt-1 font-semibold text-foreground">{company.selection_risk && company.selection_risk !== "Unknown" ? company.selection_risk : "Not analyzed"}</p></div>
-              <div><p className="text-xs text-muted-foreground">AI Suggested Position</p><p className="mt-1 font-semibold text-foreground">{aiSuggestedPosition}</p></div>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-pink-500/30 bg-pink-500/5 p-4">
-            <h3 className="font-semibold text-foreground">User Decision / You decide</h3>
-            <div className="mt-3 grid gap-3">
-              <label className="block">
-                <span className="text-sm font-semibold text-foreground">Strategy Position</span>
-                <select value={form.strategy_position} onChange={(event) => setForm((current) => (current ? { ...current, strategy_position: event.target.value as StrategyPosition } : current))} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
-                  {strategyPositions.map((position) => <option key={position} value={position}>{position}</option>)}
-                </select>
-              </label>
-              <TextAreaField label="Reason" value={form.reason} onChange={(value) => setForm((current) => (current ? { ...current, reason: value } : current))} />
-              <TextAreaField label="Next Action" value={form.next_action} onChange={(value) => setForm((current) => (current ? { ...current, next_action: value } : current))} />
-              <TextAreaField label="Personal Notes for Strategy" value={form.personal_notes} onChange={(value) => setForm((current) => (current ? { ...current, personal_notes: value } : current))} />
-            </div>
+      <Section title="Strategy Decision" subtitle="User decision only. AI Research is context; official Strategy Position is saved by you.">
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+          <h3 className="font-semibold text-foreground">User Decision / You decide</h3>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-semibold text-foreground">Strategy Position</span>
+              <select value={form.strategy_position} onChange={(event) => setForm((current) => (current ? { ...current, strategy_position: event.target.value as StrategyPosition } : current))} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
+                {strategyPositions.map((position) => <option key={position} value={position}>{position}</option>)}
+              </select>
+            </label>
+            <TextAreaField label="Reason" value={form.reason} onChange={(value) => setForm((current) => (current ? { ...current, reason: value } : current))} />
+            <TextAreaField label="Next Action" value={form.next_action} onChange={(value) => setForm((current) => (current ? { ...current, next_action: value } : current))} />
+            <TextAreaField label="Personal Notes for Strategy" value={form.personal_notes} onChange={(value) => setForm((current) => (current ? { ...current, personal_notes: value } : current))} />
           </div>
         </div>
       </Section>
-
       <Section title="ES Memo" subtitle="Your own application memo. Organize reasons and examples in your own words.">
         <div className="grid gap-3 lg:grid-cols-2">
           <TextAreaField label="Motivation draft" value={form.es_motivation_draft} onChange={(value) => setForm((current) => (current ? { ...current, es_motivation_draft: value } : current))} />

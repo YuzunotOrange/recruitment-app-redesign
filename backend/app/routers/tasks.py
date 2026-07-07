@@ -1,5 +1,3 @@
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -11,6 +9,7 @@ from app.models.event import Event
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskPriority, TaskRead, TaskStatus, TaskUpdate
+from app.services.notifications import today_jst
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -61,7 +60,7 @@ def list_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[TaskRead]:
-    today = datetime.now(UTC).date()
+    today = today_jst()
     stmt = (
         select(Task)
         .options(joinedload(Task.related_company), joinedload(Task.related_event))

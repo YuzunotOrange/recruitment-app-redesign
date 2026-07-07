@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -10,6 +10,7 @@ from app.models.company import Company
 from app.models.event import Event
 from app.models.task import Task
 from app.models.user import User
+from app.services.notifications import today_jst
 from app.schemas.dashboard import (
     DashboardKpis,
     DashboardSummary,
@@ -35,7 +36,7 @@ def dashboard_summary(
     current_user: User = Depends(get_current_user),
 ) -> DashboardSummary:
     companies = list(db.scalars(select(Company).where(Company.user_id == current_user.id)).all())
-    today = datetime.now(UTC).date()
+    today = today_jst()
     soon = today + timedelta(days=7)
 
     status_counts = {

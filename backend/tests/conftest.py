@@ -1,4 +1,9 @@
 from collections.abc import Generator
+import os
+
+os.environ["ENVIRONMENT"] = "testing"
+os.environ.pop("AUTH_COOKIE_SECURE", None)
+os.environ.pop("AUTH_COOKIE_SAMESITE", None)
 
 import pytest
 from fastapi.testclient import TestClient

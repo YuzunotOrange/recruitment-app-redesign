@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -21,7 +21,7 @@ def create_notification(db: Session, user_id: int, **overrides) -> Notification:
         "type": "deadline",
         "related_type": "company",
         "related_id": 1,
-        "scheduled_at": datetime.now(UTC) - timedelta(minutes=1),
+        "scheduled_at": datetime.now(JST) + timedelta(minutes=1),
     }
     payload.update(overrides)
     notification = Notification(**payload)
@@ -513,7 +513,7 @@ def test_event_notifications_show_current_and_future_reminders(
 
 
 def test_event_briefing_and_offer_notifications(client: TestClient, auth_headers: dict[str, str]):
-    start_day = datetime.now(UTC).date() + timedelta(days=4)
+    start_day = datetime.now(JST).date() + timedelta(days=4)
     briefing = client.post(
         "/events",
         headers=auth_headers,

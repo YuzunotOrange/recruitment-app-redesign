@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.core.database import init_db
 from app.routers import advisor, auth, companies, dashboard, decision, events, notifications, profile, strategy, tasks
 
 
@@ -21,6 +22,11 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+def startup() -> None:
+    init_db()
 
 
 app.include_router(auth.router)

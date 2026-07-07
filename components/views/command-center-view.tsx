@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ListTodo,
   Loader2,
-  Sparkles,
   Target,
   X,
 } from "lucide-react"
@@ -71,36 +70,6 @@ type AdvisorSummary = {
   system_note: string
 }
 
-type DecisionTask = {
-  title: string
-  reason: string
-  priority: Priority
-}
-
-type DecisionSummary = {
-  main_issue: MainIssue
-  reason: string
-  today_tasks: DecisionTask[]
-  week_tasks: DecisionTask[]
-  suggested_companies: Array<{
-    position: "Reach" | "Core" | "Safe"
-    shortage: number
-    reason: string
-  }>
-  risk_monitor: Record<"es" | "spi" | "interview" | "deadline", Priority>
-  application_balance: {
-    reach_ratio: number
-    core_ratio: number
-    safe_ratio: number
-    hold_count: number
-    ideal_reach_ratio: number
-    ideal_core_ratio: number
-    ideal_safe_ratio: number
-  }
-  current_situation: string
-  system_analysis: string
-}
-
 type NotificationItem = {
   id: number
   title: string
@@ -124,14 +93,14 @@ const commandCopy = {
   commandCenter: { en: "Command Center", ja: "\u53f8\u4ee4\u5854" },
   title: { en: "Today's decisions and priorities", ja: "\u4eca\u65e5\u306e\u5224\u65ad\u3068\u512a\u5148\u9806\u4f4d" },
   description: {
-    en: "Advisor and Decision Engine suggestions are separated from Dashboard so you can review only action-focused guidance here.",
-    ja: "Advisor\u3068Decision Engine\u306e\u63d0\u6848\u3092Dashboard\u304b\u3089\u5206\u96e2\u3057\u3001\u884c\u52d5\u306b\u76f4\u7d50\u3059\u308b\u5185\u5bb9\u3060\u3051\u3092\u78ba\u8a8d\u3067\u304d\u307e\u3059\u3002",
+    en: "Current tasks, deadlines, events, notifications, and system advice are organized here for today.",
+    ja: "\u4eca\u65e5\u898b\u308b\u3079\u304d\u30bf\u30b9\u30af\u3001\u7de0\u5207\u3001\u4e88\u5b9a\u3001\u901a\u77e5\u3001\u30b7\u30b9\u30c6\u30e0\u30a2\u30c9\u30d0\u30a4\u30b9\u3092\u6574\u7406\u3057\u3066\u8868\u793a\u3057\u307e\u3059\u3002",
   },
   mainIssue: { en: "Main Issue", ja: "\u4e3b\u306a\u8ab2\u984c" },
   loading: { en: "Loading Command Center...", ja: "Command Center\u3092\u8aad\u307f\u8fbc\u307f\u4e2d..." },
   todaysMission: { en: "Today's Mission", ja: "\u4eca\u65e5\u306e\u30df\u30c3\u30b7\u30e7\u30f3" },
   thisWeek: { en: "This Week", ja: "\u4eca\u9031" },
-  suggestedImprovements: { en: "Suggested Improvements", ja: "\u6539\u5584\u63d0\u6848" },
+  suggestedImprovements: { en: "Advice", ja: "\u30a2\u30c9\u30d0\u30a4\u30b9" },
   upcomingDeadlines: { en: "Upcoming Deadlines", ja: "\u76f4\u8fd1\u306e\u7de0\u5207" },
   noDeadlineAlerts: { en: "No deadline alerts.", ja: "\u7de0\u5207\u30a2\u30e9\u30fc\u30c8\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
   upcomingEvents: { en: "Upcoming Events", ja: "\u4eca\u5f8c\u306e\u30a4\u30d9\u30f3\u30c8" },
@@ -141,16 +110,12 @@ const commandCopy = {
   interviews: { en: "Interviews", ja: "\u9762\u63a5" },
   offers: { en: "Offers", ja: "\u5185\u5b9a" },
   due7d: { en: "Due <=7d", ja: "7\u65e5\u4ee5\u5185" },
-  decisionEngine: { en: "Decision Engine", ja: "\u610f\u601d\u6c7a\u5b9a\u30a8\u30f3\u30b8\u30f3" },
-  systemToday: { en: "System: Today's Mission", ja: "\u30b7\u30b9\u30c6\u30e0: \u4eca\u65e5\u306e\u30df\u30c3\u30b7\u30e7\u30f3" },
-  systemWeek: { en: "System: This Week", ja: "\u30b7\u30b9\u30c6\u30e0: \u4eca\u9031" },
-  systemAnalysis: { en: "System Analysis", ja: "\u30b7\u30b9\u30c6\u30e0\u5206\u6790" },
   recentNotifications: { en: "Recent Notifications", ja: "\u6700\u8fd1\u306e\u901a\u77e5" },
   unread: { en: "unread", ja: "\u672a\u8aad" },
   noNotifications: { en: "No notifications.", ja: "\u901a\u77e5\u306f\u3042\u308a\u307e\u305b\u3093\u3002" },
   footerNote: {
-    en: "This page is intentionally separate from Dashboard so the daily overview stays fast. Advisor and Decision Engine only analyze and prioritize. You make the final decision.",
-    ja: "Dashboard\u3092\u8efd\u304f\u4fdd\u3064\u305f\u3081\u3001\u3053\u306e\u30da\u30fc\u30b8\u306f\u5206\u96e2\u3057\u3066\u3044\u307e\u3059\u3002Advisor\u3068Decision Engine\u306f\u5206\u6790\u3068\u512a\u5148\u9806\u4f4d\u4ed8\u3051\u3060\u3051\u3092\u884c\u3044\u3001\u6700\u7d42\u5224\u65ad\u306f\u3042\u306a\u305f\u304c\u884c\u3044\u307e\u3059\u3002",
+    en: "Command Center only organizes current system data. It does not predict outcomes or decide applications.",
+    ja: "Command Center\u306f\u73fe\u5728\u306e\u30b7\u30b9\u30c6\u30e0\u30c7\u30fc\u30bf\u3092\u6574\u7406\u3059\u308b\u3060\u3051\u3067\u3059\u3002\u7d50\u679c\u306e\u4e88\u6e2c\u3084\u5fdc\u52df\u5224\u65ad\u306f\u884c\u3044\u307e\u305b\u3093\u3002",
   },
   markDone: { en: "Mark Done", ja: "\u5b8c\u4e86" },
   addToTask: { en: "Add To Task", ja: "\u30bf\u30b9\u30af\u3078\u8ffd\u52a0" },
@@ -180,26 +145,6 @@ const emptyAdvisor: AdvisorSummary = {
     recommendation: "No portfolio data yet.",
   },
   system_note: "CareerTrack analyzes and prioritizes only. The final decision is yours.",
-}
-
-const emptyDecision: DecisionSummary = {
-  main_issue: "No Issue",
-  reason: "No decision data loaded yet.",
-  today_tasks: [],
-  week_tasks: [],
-  suggested_companies: [],
-  risk_monitor: { es: "low", spi: "low", interview: "low", deadline: "low" },
-  application_balance: {
-    reach_ratio: 0,
-    core_ratio: 0,
-    safe_ratio: 0,
-    hold_count: 0,
-    ideal_reach_ratio: 30,
-    ideal_core_ratio: 50,
-    ideal_safe_ratio: 20,
-  },
-  current_situation: "No data yet.",
-  system_analysis: "Decision Engine will analyze your current application data.",
 }
 
 function eventDate(event: NonNullable<DashboardSummary["upcoming_events"]>[number]) {
@@ -268,31 +213,6 @@ function ActionList({
         ) : (
           <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
             {copy(language, commandCopy.noSuggestedActions)}
-          </p>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function SimpleTaskList({ title, tasks, language }: { title: string; tasks: DecisionTask[]; language: LanguageMode }) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-      <div className="mt-4 grid gap-3">
-        {tasks.length ? (
-          tasks.map((task, index) => (
-            <article key={`${task.title}-${index}`} className="rounded-xl border border-border bg-background/65 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-foreground">{task.title}</p>
-                <StatusBadge tone={priorityTone[task.priority]}>{task.priority}</StatusBadge>
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{task.reason}</p>
-            </article>
-          ))
-        ) : (
-          <p className="rounded-xl border border-dashed border-border bg-background/65 p-4 text-sm text-muted-foreground">
-            {copy(language, commandCopy.noSystemTasks)}
           </p>
         )}
       </div>
@@ -376,7 +296,6 @@ export function CommandCenterView() {
   const language = useLanguagePreference()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [advisor, setAdvisor] = useState<AdvisorSummary>(emptyAdvisor)
-  const [decision, setDecision] = useState<DecisionSummary>(emptyDecision)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
@@ -388,15 +307,13 @@ export function CommandCenterView() {
     setLoading(true)
     setError(null)
     try {
-      const [summaryData, advisorData, decisionData, notificationData] = await Promise.all([
+      const [summaryData, advisorData, notificationData] = await Promise.all([
         apiRequest<DashboardSummary>("/dashboard/summary"),
         apiRequest<AdvisorSummary>("/advisor/summary"),
-        apiRequest<DecisionSummary>("/decision/summary"),
         apiRequest<NotificationItem[]>("/notifications"),
       ])
       setSummary(summaryData)
       setAdvisor(advisorData)
-      setDecision(decisionData)
       setNotifications(notificationData)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Command Center.")
@@ -600,28 +517,6 @@ export function CommandCenterView() {
       </div>
 
       <section className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-          <Sparkles className="h-4 w-4" />
-          <span>{copy(language, commandCopy.decisionEngine)}</span>
-        </div>
-        <div className="mt-4 grid gap-6 xl:grid-cols-[1fr_1fr_0.9fr]">
-          <SimpleTaskList title={copy(language, commandCopy.systemToday)} tasks={decision.today_tasks} language={language} />
-          <SimpleTaskList title={copy(language, commandCopy.systemWeek)} tasks={decision.week_tasks} language={language} />
-          <div className="space-y-6">
-            <section className="rounded-2xl border border-border bg-background/65 p-5">
-              <p className="text-sm font-semibold text-foreground">{copy(language, commandCopy.mainIssue)}</p>
-              <p className="mt-2 text-2xl font-semibold text-accent">{decision.main_issue}</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{decision.reason}</p>
-            </section>
-            <ApplicationBalance balance={decision.application_balance} language={language} />
-          </div>
-        </div>
-        <p className="mt-5 rounded-xl border border-border bg-background/65 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-          {copy(language, commandCopy.systemAnalysis)}: {decision.system_analysis}
-        </p>
-      </section>
-
-      <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Bell className="h-4 w-4 text-accent" />
@@ -662,4 +557,3 @@ export function CommandCenterView() {
     </div>
   )
 }
-

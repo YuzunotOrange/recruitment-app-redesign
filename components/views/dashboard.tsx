@@ -1084,7 +1084,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-5">
+        <div className="mt-5 grid gap-3 lg:grid-cols-5">
           {strategyPositions.map((position) => (
             <div key={position} className="rounded-xl border border-border bg-background/70 p-4">
               <p className="text-xs text-muted-foreground">{position}</p>

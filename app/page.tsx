@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Sidebar, MobileNav, type ViewKey } from "@/components/sidebar"
@@ -29,7 +29,6 @@ const titles: Record<ViewKey, { en: string; ja: string }> = {
   calendar: copy.calendar,
   settings: copy.settings,
 }
-
 export default function Page() {
   useRequireAuth()
   const [view, setView] = useState<ViewKey>("dashboard")
