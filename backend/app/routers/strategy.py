@@ -12,6 +12,16 @@ from app.schemas.strategy import StrategyCompanyRead, StrategyMetrics, StrategyR
 
 router = APIRouter(prefix="/strategy", tags=["strategy"])
 
+INTERVIEW_STATUSES = {
+    "interview",
+    "first_interview_scheduled",
+    "first_interview_passed",
+    "second_interview_scheduled",
+    "second_interview_passed",
+    "final_interview_scheduled",
+    "final_interview_passed",
+}
+
 
 def clamp(value: int, minimum: int = 0, maximum: int = 100) -> int:
     return max(minimum, min(maximum, value))
@@ -31,7 +41,7 @@ def calculate_company_strategy(company: Company) -> tuple[int, str, str, str | N
         probability -= 25
         risk = "ES"
         action = "Review company-specific ES customization and strengthen motivation details."
-    elif company.status == "interview":
+    elif company.status in INTERVIEW_STATUSES:
         probability += 20
         risk = "Interview"
         action = "Prepare interview stories, expected questions, and reverse questions."
@@ -118,8 +128,8 @@ def build_strategy_summary(companies: list[Company]) -> StrategySummary:
 
     es_rejected = sum(1 for company in companies if company.status == "es_rejected")
     spi_rejected = sum(1 for company in companies if company.status == "spi_rejected")
-    interviews = sum(1 for company in companies if company.status == "interview")
-    offers = sum(1 for company in companies if company.status == "offer")
+    interviews = sum(1 for company in companies if company.status in INTERVIEW_STATUSES)
+    offers = sum(1 for company in companies if company.status in {"offer", "internship_offer"})
 
     actions: list[StrategyRecommendedAction] = []
     if spi_rejected >= 2:

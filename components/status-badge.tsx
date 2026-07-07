@@ -22,7 +22,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "cyber-flicker inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset whitespace-nowrap",
+        "cyber-flicker inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
         toneStyles[tone],
         className,
       )}
@@ -39,6 +39,7 @@ export function PriorityBadge({ priority }: { priority: "S" | "A" | "B" | "C" })
     B: "info",
     C: "neutral",
   }
+
   return (
     <span
       className={cn(
@@ -53,13 +54,9 @@ export function PriorityBadge({ priority }: { priority: "S" | "A" | "B" | "C" })
 
 export function Stars({ count }: { count: number }) {
   return (
-    <span className="inline-flex" aria-label={`重要度 ${count}/5`}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <span
-          key={i}
-          className={i < count ? "text-warning" : "text-border"}
-          aria-hidden
-        >
+    <span className="inline-flex" aria-label={`Importance ${count}/5`}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <span key={index} className={index < count ? "text-warning" : "text-border"} aria-hidden>
           ★
         </span>
       ))}

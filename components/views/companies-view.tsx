@@ -11,7 +11,7 @@ import {
   type Priority,
 } from "@/lib/data"
 import { apiRequest } from "@/lib/api"
-import { formatLocalizedDate, useLanguagePreference } from "@/lib/language"
+import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
 import { requestAppDataRefresh } from "@/lib/notification-events"
 import { SplitDateInput } from "@/components/split-date-input"
 import { PriorityBadge, Stars, StatusBadge } from "@/components/status-badge"
@@ -290,8 +290,8 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
         </button>
       </div>
 
-      <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 lg:grid-cols-4">
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground lg:col-span-2">
+      <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 xl:grid-cols-4">
+        <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground xl:col-span-2">
           <Search className="h-4 w-4" />
           <input
             value={search}
@@ -303,19 +303,19 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as CompanyStatus | "all")}
-          className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All statuses</option>
           {statuses.map((status) => (
             <option key={status} value={status}>
-              {companyStatusMeta[status].en}
+              {text(language, companyStatusMeta[status])}
             </option>
           ))}
         </select>
         <select
           value={priorityFilter}
           onChange={(event) => setPriorityFilter(event.target.value as Priority | "all")}
-          className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">All company ranks</option>
           {priorities.map((priority) => (
@@ -333,29 +333,29 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
             This form edits only basic company information. AI Research and Strategy Memo are in Company Notebook.
           </p>
         </div>
-        <div className="grid gap-3 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <input
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
             required
             placeholder="Company name"
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2"
+            className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2"
           />
           <select
             value={form.industry}
             onChange={(event) => setForm((current) => ({ ...current, industry: event.target.value as Industry }))}
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           >
             {industries.map((industry) => (
               <option key={industry} value={industry}>
-                {industryMeta[industry].en}
+                {text(language, industryMeta[industry])}
               </option>
             ))}
           </select>
           <select
             value={form.priority}
             onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as Priority }))}
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           >
             {priorities.map((priority) => (
               <option key={priority} value={priority}>
@@ -369,20 +369,20 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
             max={5}
             value={form.importance}
             onChange={(event) => setForm((current) => ({ ...current, importance: Number(event.target.value) }))}
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           />
           <select
             value={form.status}
             onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CompanyStatus }))}
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+            className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
           >
             {statuses.map((status) => (
               <option key={status} value={status}>
-                {companyStatusMeta[status].en}
+                {text(language, companyStatusMeta[status])}
               </option>
             ))}
           </select>
-          <div className="lg:col-span-2">
+          <div className="min-w-0 sm:col-span-2 xl:col-span-2">
             <SplitDateInput
               value={form.es_deadline}
               onChange={(value) => setForm((current) => ({ ...current, es_deadline: value }))}
@@ -393,9 +393,9 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
             value={form.note}
             onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
             placeholder="Note"
-            className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-3"
+            className="min-w-0 rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring sm:col-span-2 xl:col-span-3"
           />
-          <div className="flex gap-2 lg:col-span-1">
+          <div className="flex gap-2 sm:col-span-2 xl:col-span-1">
             <button
               type="submit"
               disabled={saving}
@@ -441,7 +441,7 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-base font-semibold text-foreground">{company.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{industryMeta[company.industry].en}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{text(language, industryMeta[company.industry])}</p>
                       </div>
                       <PriorityBadge priority={company.priority} />
                     </div>
@@ -475,7 +475,7 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                         className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
                       >
                         {statuses.map((status) => (
-                          <option key={status} value={status}>{companyStatusMeta[status].en}</option>
+                          <option key={status} value={status}>{text(language, companyStatusMeta[status])}</option>
                         ))}
                       </select>
                       <button onClick={() => onOpenNotebook?.(company.id)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-card p-2 text-muted-foreground ring-1 ring-border hover:text-primary" aria-label="Open notebook"><BookOpen className="h-4 w-4" /></button>
@@ -508,7 +508,7 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                     return (
                       <tr key={company.id} className="transition-colors hover:bg-muted/40">
                         <td className="px-4 py-3"><span className="font-medium text-foreground">{company.name}</span></td>
-                        <td className="px-4 py-3 text-muted-foreground">{industryMeta[company.industry].en}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{text(language, industryMeta[company.industry])}</td>
                         <td className="px-4 py-3"><PriorityBadge priority={company.priority} /></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -519,7 +519,7 @@ export function CompaniesView({ onOpenNotebook }: { onOpenNotebook?: (companyId:
                               className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
                             >
                               {statuses.map((status) => (
-                                <option key={status} value={status}>{companyStatusMeta[status].en}</option>
+                                <option key={status} value={status}>{text(language, companyStatusMeta[status])}</option>
                               ))}
                             </select>
                           </div>

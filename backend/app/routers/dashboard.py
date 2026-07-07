@@ -21,6 +21,45 @@ from app.schemas.dashboard import (
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
+COMPANY_STATUSES = [
+    "planned",
+    "applied",
+    "es_submitted",
+    "es_passed",
+    "es_rejected",
+    "spi_taking",
+    "spi_passed",
+    "spi_rejected",
+    "gd_scheduled",
+    "gd_passed",
+    "gd_rejected",
+    "first_interview_scheduled",
+    "first_interview_passed",
+    "second_interview_scheduled",
+    "second_interview_passed",
+    "final_interview_scheduled",
+    "final_interview_passed",
+    "waiting_result",
+    "internship_scheduled",
+    "internship_attending",
+    "internship_offer",
+    "interview",
+    "offer",
+    "declined",
+]
+
+INTERVIEW_STATUSES = {
+    "interview",
+    "first_interview_scheduled",
+    "first_interview_passed",
+    "second_interview_scheduled",
+    "second_interview_passed",
+    "final_interview_scheduled",
+    "final_interview_passed",
+}
+
+AWAITING_STATUSES = {"planned", "applied", "waiting_result"}
+
 
 def event_time_label(event: Event) -> str | None:
     if event.start_time and event.end_time:
@@ -39,15 +78,7 @@ def dashboard_summary(
     today = today_jst()
     soon = today + timedelta(days=7)
 
-    status_counts = {
-        "planned": 0,
-        "es_submitted": 0,
-        "es_rejected": 0,
-        "spi_rejected": 0,
-        "interview": 0,
-        "offer": 0,
-        "declined": 0,
-    }
+    status_counts = {status: 0 for status in COMPANY_STATUSES}
     industry_counts = {"maker": 0, "finance": 0, "consulting": 0, "it": 0, "other": 0}
 
     for company in companies:
@@ -73,6 +104,7 @@ def dashboard_summary(
     upcoming_schedule_events = [event for event in upcoming_event_rows if event.type != "deadline"]
     event_deadline_soon = sum(1 for event in upcoming_deadline_events if today <= event.start_date <= soon)
     interview_events = sum(1 for event in event_rows if event.type == "interview")
+    interview_companies = sum(status_counts.get(status, 0) for status in INTERVIEW_STATUSES)
     internship_events = sum(1 for event in event_rows if event.type == "intern")
     today_events = sum(1 for event in event_rows if event.start_date <= today <= event.end_date)
     today_company_deadlines = sum(1 for company in companies if company.es_deadline == today)
@@ -90,8 +122,8 @@ def dashboard_summary(
     kpis = DashboardKpis(
         total_companies=len(companies),
         es_in_review=status_counts.get("es_submitted", 0),
-        interviews=interview_events,
-        awaiting=status_counts.get("planned", 0),
+        interviews=interview_events + interview_companies,
+        awaiting=sum(status_counts.get(status, 0) for status in AWAITING_STATUSES),
         offers=status_counts.get("offer", 0),
         deadline_soon=company_deadline_soon + event_deadline_soon,
         internships=internship_events,

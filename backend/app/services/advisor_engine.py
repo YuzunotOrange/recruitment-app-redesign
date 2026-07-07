@@ -16,6 +16,15 @@ from app.schemas.advisor import (
 
 
 STRATEGY_POSITIONS = ("Reach", "Core", "Safe", "Hold")
+INTERVIEW_STATUSES = {
+    "interview",
+    "first_interview_scheduled",
+    "first_interview_passed",
+    "second_interview_scheduled",
+    "second_interview_passed",
+    "final_interview_scheduled",
+    "final_interview_passed",
+}
 ACTIVE_POSITIONS = ("Reach", "Core", "Safe")
 
 
@@ -70,8 +79,9 @@ class AdvisorEngine:
 
         es_rejected = sum(1 for company in companies if company.status == "es_rejected")
         spi_rejected = sum(1 for company in companies if company.status == "spi_rejected")
-        offers = sum(1 for company in companies if company.status == "offer")
+        offers = sum(1 for company in companies if company.status in {"offer", "internship_offer"})
         interview_events = [event for event in events if event.type == "interview"]
+        interview_company_count = sum(1 for company in companies if company.status in INTERVIEW_STATUSES)
         upcoming_events = [event for event in events if event.start_date >= today]
         unread_notifications = sum(1 for notification in notifications if not notification.is_read)
         accepted_research = sum(1 for research in research_entries if research.accepted)
@@ -91,7 +101,7 @@ class AdvisorEngine:
         main_issue, reason = self._main_issue(
             spi_rejected=spi_rejected,
             es_rejected=es_rejected,
-            interview_count=len(interview_events),
+            interview_count=len(interview_events) + interview_company_count,
             deadline_count=len(deadline_alerts),
             missing_portfolio=missing_portfolio,
             offer_count=offers,
@@ -101,7 +111,7 @@ class AdvisorEngine:
         risk_monitor = AdvisorRiskMonitor(
             es=_risk_level(es_rejected, high_at=3),
             spi=_risk_level(spi_rejected, high_at=3),
-            interview="medium" if companies and len(interview_events) == 0 else ("low" if len(interview_events) >= 3 else "medium"),
+            interview="medium" if companies and len(interview_events) + interview_company_count == 0 else ("low" if len(interview_events) + interview_company_count >= 3 else "medium"),
             deadline=_risk_level(len(deadline_alerts), medium_at=1, high_at=3),
         )
 
@@ -118,7 +128,7 @@ class AdvisorEngine:
         suggested_improvements = self._suggested_improvements(
             es_rejected=es_rejected,
             spi_rejected=spi_rejected,
-            interview_count=len(interview_events),
+            interview_count=len(interview_events) + interview_company_count,
             accepted_research=accepted_research,
             missing_portfolio=missing_portfolio,
             unresearched_count=len(unresearched_companies),

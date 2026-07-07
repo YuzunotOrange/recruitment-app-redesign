@@ -10,6 +10,15 @@ from app.schemas.decision import BalanceSnapshot, DecisionSummary, DecisionTask,
 
 
 STRATEGY_POSITIONS = ("Reach", "Core", "Safe", "Hold")
+INTERVIEW_STATUSES = {
+    "interview",
+    "first_interview_scheduled",
+    "first_interview_passed",
+    "second_interview_scheduled",
+    "second_interview_passed",
+    "final_interview_scheduled",
+    "final_interview_passed",
+}
 ACTIVE_POSITIONS = ("Reach", "Core", "Safe")
 IDEAL_RATIOS = {"Reach": 30, "Core": 50, "Safe": 20}
 
@@ -76,6 +85,7 @@ class DecisionEngine:
         es_rejected = sum(1 for company in companies if company.status == "es_rejected")
         spi_rejected = sum(1 for company in companies if company.status == "spi_rejected")
         interview_events = [event for event in events if event.type == "interview"]
+        interview_company_count = sum(1 for company in companies if company.status in INTERVIEW_STATUSES)
         upcoming_events = [event for event in events if event.start_date >= today]
         soon_deadline_companies = [
             company
@@ -112,17 +122,17 @@ class DecisionEngine:
         risk_monitor = RiskMonitor(
             es=_risk_level(es_rejected),
             spi=_risk_level(spi_rejected),
-            interview="medium" if len(interview_events) < 3 and companies else "low",
+            interview="medium" if len(interview_events) + interview_company_count < 3 and companies else "low",
             deadline=_risk_level(deadline_risk_count, medium_at=1, high_at=3),
         )
 
         main_issue, reason = self._main_issue(
             spi_rejected=spi_rejected,
             es_rejected=es_rejected,
-            interview_count=len(interview_events),
+            interview_count=len(interview_events) + interview_company_count,
             deadline_count=deadline_risk_count,
             suggested_companies=suggested_companies,
-            offer_count=sum(1 for company in companies if company.status == "offer"),
+            offer_count=sum(1 for company in companies if company.status in {"offer", "internship_offer"}),
             total_companies=len(companies),
         )
 

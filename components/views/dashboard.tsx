@@ -141,14 +141,14 @@ function StatusChart({
   const max = Math.max(...order.map((status) => counts[status] ?? 0), 1)
 
   return (
-    <div className="space-y-3">
+    <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
       {order.map((status) => {
         const meta = companyStatusMeta[status]
         const value = counts[status] ?? 0
 
         return (
-          <div key={status} className="flex items-center gap-3">
-            <span className="w-24 shrink-0 text-xs text-muted-foreground">
+          <div key={status} className="grid grid-cols-[minmax(7.5rem,10rem)_minmax(0,1fr)_2rem] items-center gap-3">
+            <span className="min-w-0 truncate text-xs text-muted-foreground" title={text(language, meta)}>
               {text(language, meta)}
             </span>
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
@@ -191,28 +191,28 @@ function IndustryDonut({
   })
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
       <div
-        className="relative h-28 w-28 shrink-0 rounded-full bg-muted"
+        className="relative h-32 w-32 shrink-0 rounded-full bg-muted sm:h-28 sm:w-28"
         style={total ? { background: `conic-gradient(${stops.join(", ")})` } : undefined}
       >
         <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full bg-card">
-          <span className="text-xl font-semibold text-foreground">{total}</span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xl font-semibold leading-none text-foreground">{total}</span>
+          <span className="mt-1 max-w-16 text-center text-[10px] leading-tight text-muted-foreground">
             {text(language, copy.kpiCompanies)}
           </span>
         </div>
       </div>
-      <div className="flex-1 space-y-2">
+      <div className="min-w-0 flex-1 space-y-2">
         {entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {text(language, copy.noIndustryData)}
           </p>
         ) : (
           entries.map((entry, index) => (
-            <div key={entry.key} className="flex items-center gap-2 text-sm">
+            <div key={entry.key} className="grid grid-cols-[0.75rem_minmax(0,1fr)_2rem] items-center gap-2 text-sm">
               <span className={`h-2.5 w-2.5 rounded-sm ${colors[index % 5]}`} />
-              <span className="flex-1 text-muted-foreground">
+              <span className="min-w-0 truncate text-muted-foreground">
                 {text(language, industryMeta[entry.key])}
               </span>
               <span className="font-medium tabular-nums text-foreground">{entry.value}</span>
@@ -483,12 +483,12 @@ function getCareerLevel(readiness: number, interviews: number, offers: number): 
 function getProgressScore(summary: DashboardSummary): ProgressScore {
   const counts = summary.company_status_counts
   const total = Math.max(summary.kpis.total_companies, 1)
-  const planned = counts.planned ?? 0
-  const esSubmitted = counts.es_submitted ?? 0
+  const planned = (counts.planned ?? 0) + (counts.applied ?? 0)
+  const esSubmitted = (counts.es_submitted ?? 0) + (counts.es_passed ?? 0)
   const interviews = summary.kpis.interviews
   const offers = summary.kpis.offers
-  const declined = counts.declined ?? 0
-  const rejected = (counts.es_rejected ?? 0) + (counts.spi_rejected ?? 0)
+  const declined = (counts.declined ?? 0) + (counts.waiting_result ?? 0)
+  const rejected = (counts.es_rejected ?? 0) + (counts.spi_rejected ?? 0) + (counts.gd_rejected ?? 0)
 
   const eventsThisWeek = (summary.upcoming_events ?? []).filter((event) => {
     const date = getEventDate(event)
@@ -813,7 +813,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       badge: text(language, companyStatusMeta[company.status]),
     }))
     const esItems = companies
-      .filter((company) => company.status === "es_submitted")
+      .filter((company) => company.status === "es_submitted" || company.status === "es_passed")
       .map((company) => ({
         id: `es-${company.id}`,
         title: company.name,
@@ -835,14 +835,14 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
         badge: text(language, { en: "Interview", ja: "面接" }),
       }))
     const awaitingItems = companies
-      .filter((company) => company.status === "planned")
+      .filter((company) => company.status === "planned" || company.status === "applied" || company.status === "waiting_result")
       .map((company) => ({
         id: `planned-${company.id}`,
         title: company.name,
         meta: companyMeta(company, language),
         date: company.es_deadline ?? undefined,
         tone: "neutral" as Tone,
-        badge: text(language, { en: "Planned", ja: "応募予定" }),
+        badge: text(language, companyStatusMeta[company.status]),
       }))
     const internshipItems = events
       .filter((event) => event.type === "intern")
@@ -952,13 +952,21 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
   }, [strategy])
   const upcoming = (summary.upcoming_events ?? []).slice(0, 5)
   const statusCounts = summary.company_status_counts
-  const failedCount = (statusCounts.es_rejected ?? 0) + (statusCounts.spi_rejected ?? 0)
-  const pendingCount = (statusCounts.planned ?? 0) + events.filter((event) => daysUntil(event.end_date) >= 0).length
+  const failedCount = (statusCounts.es_rejected ?? 0) + (statusCounts.spi_rejected ?? 0) + (statusCounts.gd_rejected ?? 0)
+  const pendingCount =
+    (statusCounts.planned ?? 0) +
+    (statusCounts.applied ?? 0) +
+    (statusCounts.waiting_result ?? 0) +
+    events.filter((event) => daysUntil(event.end_date) >= 0).length
   const clearedCount =
-    (statusCounts.es_submitted ?? 0) +
-    (statusCounts.interview ?? 0) +
+    (statusCounts.es_passed ?? 0) +
+    (statusCounts.spi_passed ?? 0) +
+    (statusCounts.gd_passed ?? 0) +
+    (statusCounts.first_interview_passed ?? 0) +
+    (statusCounts.second_interview_passed ?? 0) +
+    (statusCounts.final_interview_passed ?? 0) +
     (statusCounts.offer ?? 0) +
-    (statusCounts.declined ?? 0)
+    (statusCounts.internship_offer ?? 0)
   const totalCount = summary.kpis.total_companies + events.length
   const actionableCount = Math.max(totalCount - failedCount, 0)
   const clearRate = actionableCount > 0 ? Math.min(100, Math.round((clearedCount / actionableCount) * 100)) : 0
@@ -1305,8 +1313,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.1fr)_minmax(24rem,0.9fr)]">
+        <div className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-foreground">
@@ -1359,13 +1367,13 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
               const days = date ? daysUntil(date) : 0
 
               return (
-                <div key={event.id} className="flex items-center gap-4 px-5 py-3 text-sm">
-                  <span className="w-14 shrink-0 font-medium tabular-nums text-muted-foreground">
+                <div key={event.id} className="grid gap-2 px-5 py-4 text-sm sm:grid-cols-[8rem_minmax(8rem,12rem)_minmax(0,1fr)_4rem_auto] sm:items-center sm:gap-5">
+                  <span className="inline-flex w-fit min-w-[7.5rem] shrink-0 rounded-lg bg-muted px-2.5 py-1.5 font-medium tabular-nums text-muted-foreground">
                     {date ? formatLocalizedDate(date, language) : "-"}
                   </span>
-                  <span className="w-40 shrink-0 truncate font-medium text-foreground">{getCompanyName(event)}</span>
-                  <span className="flex-1 truncate text-foreground">{event.title}</span>
-                  <span className="hidden text-muted-foreground sm:block">{event.time ?? "-"}</span>
+                  <span className="min-w-0 truncate font-medium text-foreground" title={getCompanyName(event)}>{getCompanyName(event)}</span>
+                  <span className="min-w-0 break-words text-foreground sm:truncate" title={event.title}>{event.title}</span>
+                  <span className="text-muted-foreground">{event.time ?? "-"}</span>
                   <StatusBadge tone={days <= 7 ? "warning" : "neutral"}>
                     {days === 0 ? text(language, copy.kpiToday) : `${days}d`}
                   </StatusBadge>

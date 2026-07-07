@@ -3,11 +3,12 @@
 import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { CheckCircle2, Pencil, Plus, Save, Trash2, X } from "lucide-react"
+
 import { apiRequest } from "@/lib/api"
 import { formatLocalizedDate, text, useLanguagePreference } from "@/lib/language"
 import { requestAppDataRefresh } from "@/lib/notification-events"
-import { StatusBadge } from "@/components/status-badge"
 import { SplitDateInput } from "@/components/split-date-input"
+import { StatusBadge } from "@/components/status-badge"
 
 type TaskPriority = "high" | "medium" | "low"
 type TaskStatus = "todo" | "in_progress" | "completed"
@@ -205,27 +206,27 @@ export function TasksView() {
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-card p-4">
-        <div className="grid gap-3 lg:grid-cols-6">
-          <input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={text(language, { en: "Task title", ja: "タスク名" })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2" />
-          <input value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder={text(language, { en: "Description", ja: "説明" })} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2" />
-          <SplitDateInput value={form.due_date} onChange={(due_date) => setForm((current) => ({ ...current, due_date }))} ariaLabel="Task due date" />
-          <select value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={text(language, { en: "Task title", ja: "タスク名" })} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2" />
+          <input value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder={text(language, { en: "Description", ja: "説明" })} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2" />
+          <SplitDateInput value={form.due_date} onChange={(due_date) => setForm((current) => ({ ...current, due_date }))} ariaLabel="Task due date" className="min-w-[15.5rem] sm:min-w-0" />
+          <select value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
             <option value="high">high</option>
             <option value="medium">medium</option>
             <option value="low">low</option>
           </select>
-          <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as TaskStatus }))} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
+          <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as TaskStatus }))} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
             {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{text(language, label)}</option>)}
           </select>
-          <select value={form.related_company_id} onChange={(event) => setForm((current) => ({ ...current, related_company_id: event.target.value }))} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2">
+          <select value={form.related_company_id} onChange={(event) => setForm((current) => ({ ...current, related_company_id: event.target.value }))} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2">
             <option value="">{text(language, { en: "No company", ja: "企業なし" })}</option>
             {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
           </select>
-          <select value={form.related_event_id} onChange={(event) => setForm((current) => ({ ...current, related_event_id: event.target.value }))} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring lg:col-span-2">
+          <select value={form.related_event_id} onChange={(event) => setForm((current) => ({ ...current, related_event_id: event.target.value }))} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2">
             <option value="">{text(language, { en: "No event", ja: "イベントなし" })}</option>
             {events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
           </select>
-          <div className="flex gap-2 lg:col-span-1">
+          <div className="flex gap-2 sm:col-span-2 xl:col-span-1">
             <button type="submit" disabled={saving} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
               {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {editingId ? text(language, { en: "Save", ja: "保存" }) : text(language, { en: "Add", ja: "追加" })}
