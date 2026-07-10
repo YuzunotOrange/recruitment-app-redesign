@@ -15,6 +15,17 @@ type ApiEvent = {
   start_time?: string | null
   type: EventType
   note?: string | null
+  candidate_dates?: EventCandidateDate[]
+}
+
+type EventCandidateDate = {
+  id: number
+  start_date: string
+  end_date: string
+  start_time?: string | null
+  end_time?: string | null
+  note?: string | null
+  is_selected: boolean
 }
 
 const DAY = 1000 * 60 * 60 * 24
@@ -72,6 +83,30 @@ export function TimelineView() {
     }
   }, [])
 
+  async function selectCandidateDate(event: ApiEvent, candidateId: number) {
+    if (!event.candidate_dates?.length) return
+    setError(null)
+    try {
+      const updated = await apiRequest<ApiEvent>(`/events/${event.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          candidate_dates: event.candidate_dates.map((candidate) => ({
+            start_date: candidate.start_date,
+            end_date: candidate.end_date,
+            start_time: candidate.start_time,
+            end_time: candidate.end_time,
+            note: candidate.note,
+            is_selected: candidate.id === candidateId,
+          })),
+        }),
+      })
+      setEvents((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      setSelectedEvent(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update event date.")
+    }
+  }
+
   const rows = useMemo(
     () => [...events].sort((a, b) => a.start_date.localeCompare(b.start_date) || a.title.localeCompare(b.title)),
     [events],
@@ -118,7 +153,7 @@ export function TimelineView() {
 
       {error && <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-5 py-4 text-sm text-destructive">{error}</div>}
 
-      <div className="space-y-3 md:hidden" data-mobile-timeline-list>
+      <div className="space-y-3 sm:hidden" data-mobile-timeline-list>
         {loading ? (
           <div className="rounded-2xl border border-border bg-card px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "Loading timeline...", ja: "読み込み中..." })}</div>
         ) : rows.length === 0 ? (
@@ -142,7 +177,7 @@ export function TimelineView() {
         )}
       </div>
 
-      <div className="hidden overflow-hidden rounded-2xl border border-border bg-card md:block">
+      <div className="hidden overflow-hidden rounded-2xl border border-border bg-card sm:block">
         <div className="overflow-x-auto">
           <div style={{ minWidth: `calc(${LABEL_WIDTH} + ${totalDays * COL}px)` }}>
             <div className="flex border-b border-border bg-primary text-primary-foreground">
@@ -249,6 +284,28 @@ export function TimelineView() {
             <div><p className="text-xs text-muted-foreground">End</p><p className="font-medium text-foreground">{formatLocalizedDate(selectedEvent.end_date, language)}</p></div>
             <div><p className="text-xs text-muted-foreground">Time</p><p className="font-medium text-foreground">{selectedEvent.start_time?.slice(0, 5) ?? "-"}</p></div>
           </div>
+          {selectedEvent.candidate_dates && selectedEvent.candidate_dates.length > 1 && (
+            <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Candidate dates</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {selectedEvent.candidate_dates.map((candidate) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    onClick={() => selectCandidateDate(selectedEvent, candidate.id)}
+                    className={`rounded-lg border px-3 py-2 text-left text-sm ${
+                      candidate.is_selected
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="block font-medium">{formatLocalizedDate(candidate.start_date, language)} - {formatLocalizedDate(candidate.end_date, language)}</span>
+                    <span className="mt-1 block text-xs">{candidate.start_time?.slice(0, 5) ?? "No time"}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="mt-4 whitespace-pre-wrap rounded-xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">{selectedEvent.note || text(language, { en: "No detail yet.", ja: "詳細はまだありません。" })}</p>
         </div>
       )}

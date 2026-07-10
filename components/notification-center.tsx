@@ -31,7 +31,7 @@ export function NotificationCenter() {
   const theme = useThemePreference()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function loadNotifications() {
@@ -48,7 +48,10 @@ export function NotificationCenter() {
   }
 
   useEffect(() => {
-    loadNotifications()
+    const timer = window.setTimeout(() => {
+      loadNotifications()
+    }, 800)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {

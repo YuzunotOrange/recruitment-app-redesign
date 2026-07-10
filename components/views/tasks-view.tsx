@@ -209,7 +209,7 @@ export function TasksView() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={text(language, { en: "Task title", ja: "タスク名" })} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2" />
           <input value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder={text(language, { en: "Description", ja: "説明" })} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring xl:col-span-2" />
-          <SplitDateInput value={form.due_date} onChange={(due_date) => setForm((current) => ({ ...current, due_date }))} ariaLabel="Task due date" className="min-w-[15.5rem] sm:min-w-0" />
+          <SplitDateInput value={form.due_date} onChange={(due_date) => setForm((current) => ({ ...current, due_date }))} ariaLabel="Task due date" className="min-w-0" />
           <select value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as TaskPriority }))} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring">
             <option value="high">high</option>
             <option value="medium">medium</option>

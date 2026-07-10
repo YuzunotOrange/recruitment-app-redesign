@@ -1,5 +1,6 @@
 "use client"
 
+import type { ElementType } from "react"
 import {
   Building2,
   CalendarClock,
@@ -8,6 +9,8 @@ import {
   GraduationCap,
   LayoutDashboard,
   ListTodo,
+  PanelLeftClose,
+  PanelLeftOpen,
   Radar,
   Settings,
   Target,
@@ -17,7 +20,7 @@ import { cn } from "@/lib/utils"
 
 export type ViewKey = "dashboard" | "command" | "companies" | "events" | "tasks" | "strategy" | "timeline" | "calendar" | "settings"
 
-const nav: { key: ViewKey; en: string; ja: string; icon: React.ElementType }[] = [
+const nav: { key: ViewKey; en: string; ja: string; icon: ElementType }[] = [
   { key: "dashboard", ...copy.dashboard, icon: LayoutDashboard },
   { key: "command", en: "Command", ja: "司令塔", icon: Radar },
   { key: "companies", ...copy.companies, icon: Building2 },
@@ -29,25 +32,46 @@ const nav: { key: ViewKey; en: string; ja: string; icon: React.ElementType }[] =
   { key: "settings", ...copy.settings, icon: Settings },
 ]
 
-export function Sidebar({ active, onChange }: { active: ViewKey; onChange: (v: ViewKey) => void }) {
+export function Sidebar({
+  active,
+  collapsed = false,
+  onChange,
+  onToggle,
+}: {
+  active: ViewKey
+  collapsed?: boolean
+  onChange: (v: ViewKey) => void
+  onToggle?: () => void
+}) {
   const language = useLanguagePreference()
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
-      <div className="flex items-center gap-2.5 px-5 py-5">
+    <aside className={cn("hidden shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 md:flex", collapsed ? "w-[4.5rem]" : "w-60")}>
+      <div className={cn("flex items-center gap-2.5 px-4 py-5", collapsed && "justify-center px-3")}>
         <div className="cyber-logo-ring flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
           <GraduationCap className="h-5 w-5" />
         </div>
-        <div className="leading-tight">
+        {!collapsed && <div className="leading-tight">
           <p className="text-sm font-semibold text-white">CareerTrack</p>
           <p className="text-[11px] text-sidebar-foreground/70">{text(language, copy.appSubtitle)}</p>
-        </div>
+        </div>}
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
-        <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-          {text(language, copy.menu)}
-        </p>
+        <div className={cn("flex items-center gap-2 pb-1 pt-3", collapsed ? "justify-center" : "px-3")}>
+          {!collapsed && <p className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">{text(language, copy.menu)}</p>}
+          {onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-white"
+              aria-label={collapsed ? "Show menu labels" : "Hide menu labels"}
+              title={collapsed ? "Show menu labels" : "Hide menu labels"}
+            >
+              {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
         {nav.map((item) => {
           const isActive = active === item.key
           const Icon = item.icon
@@ -57,16 +81,18 @@ export function Sidebar({ active, onChange }: { active: ViewKey; onChange: (v: V
             <button
               key={item.key}
               onClick={() => onChange(item.key)}
+              title={text(language, item)}
               className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                "group flex items-center rounded-lg px-3 py-2.5 text-sm transition-colors",
+                collapsed ? "justify-center gap-0" : "gap-3",
                 isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
               )}
             >
               <Icon className="h-[18px] w-[18px]" />
-              <span className="flex-1 text-left font-medium">{text(language, item)}</span>
-              {secondary && (
+              {!collapsed && <span className="flex-1 text-left font-medium">{text(language, item)}</span>}
+              {!collapsed && secondary && (
                 <span
                   className={cn(
                     "text-[11px]",
@@ -81,7 +107,7 @@ export function Sidebar({ active, onChange }: { active: ViewKey; onChange: (v: V
         })}
       </nav>
 
-      <div className="m-3 rounded-xl bg-sidebar-accent p-4">
+      {!collapsed && <div className="m-3 rounded-xl bg-sidebar-accent p-4">
         <p className="text-xs font-medium text-white">{text(language, copy.recruitment2026)}</p>
         <p className="mt-1 text-[11px] text-sidebar-foreground/70">{text(language, copy.recruitmentProgress)}</p>
         <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-sidebar/60">
@@ -90,7 +116,7 @@ export function Sidebar({ active, onChange }: { active: ViewKey; onChange: (v: V
         <p className="mt-2 text-[11px] text-sidebar-foreground/70">
           {text(language, copy.progress)} 45%
         </p>
-      </div>
+      </div>}
     </aside>
   )
 }

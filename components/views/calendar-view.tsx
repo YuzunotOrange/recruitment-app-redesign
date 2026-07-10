@@ -295,7 +295,7 @@ export function CalendarView() {
       {!loading && items.length === 0 && <div className="rounded-2xl border border-border bg-card px-5 py-8 text-sm text-muted-foreground">{text(language, { en: "No calendar items yet.", ja: "カレンダー項目はまだありません。" })}</div>}
 
       {!loading && items.length > 0 && mode !== "day" && (
-        <div className="space-y-3 md:hidden" data-mobile-calendar-list>
+        <div className="space-y-3 sm:hidden" data-mobile-calendar-list>
           {items.filter((item) => parseIsoDate(item.date).getMonth() === cursor.getMonth()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 12).map((item) => (
             <button key={item.id} type="button" onClick={() => selectDay(parseIsoDate(item.date))} className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left">
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot[item.tone]}`} />
@@ -306,7 +306,7 @@ export function CalendarView() {
         </div>
       )}
 
-      {!loading && items.length > 0 && (mode === "month" ? <div className="hidden md:block"><MonthView cursor={cursor} items={items} language={language} onSelectDay={selectDay} /></div> : mode === "week" ? <WeekView cursor={cursor} items={items} language={language} onSelectDay={selectDay} /> : <DayView cursor={cursor} items={items} language={language} />)}
+      {!loading && items.length > 0 && (mode === "month" ? <div className="hidden sm:block"><MonthView cursor={cursor} items={items} language={language} onSelectDay={selectDay} /></div> : mode === "week" ? <WeekView cursor={cursor} items={items} language={language} onSelectDay={selectDay} /> : <DayView cursor={cursor} items={items} language={language} />)}
     </div>
   )
 }

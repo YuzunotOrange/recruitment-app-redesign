@@ -33,6 +33,7 @@ export default function Page() {
   useRequireAuth()
   const [view, setView] = useState<ViewKey>("dashboard")
   const [notebookCompanyId, setNotebookCompanyId] = useState<number | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const language = useLanguagePreference()
   const pageTitle =
     view === "companies" && notebookCompanyId
@@ -47,7 +48,7 @@ export default function Page() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar active={view} onChange={changeView} />
+      <Sidebar active={view} collapsed={sidebarCollapsed} onChange={changeView} onToggle={() => setSidebarCollapsed((current) => !current)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:static md:px-8 md:py-4">

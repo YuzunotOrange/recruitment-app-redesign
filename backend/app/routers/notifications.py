@@ -10,7 +10,7 @@ from app.models.notification import Notification, ReminderSettings
 from app.models.user import User
 from app.services.notifications import (
     get_or_create_reminder_settings,
-    is_current_or_future_notification,
+    is_due_notification,
     notification_allowed_by_settings,
     sync_company_notifications,
     sync_event_notifications,
@@ -61,7 +61,7 @@ def list_notifications(
     return [
         notification
         for notification in notifications
-        if is_current_or_future_notification(notification.scheduled_at)
+        if is_due_notification(notification.scheduled_at)
         and notification_allowed_by_settings(notification.type, settings)
     ]
 
@@ -84,15 +84,22 @@ def mark_all_notifications_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ReadAllResponse:
+    settings = get_or_create_reminder_settings(db, current_user.id)
     notifications = list(
         db.scalars(
             select(Notification).where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
         ).all()
     )
-    for notification in notifications:
+    visible_notifications = [
+        notification
+        for notification in notifications
+        if is_due_notification(notification.scheduled_at)
+        and notification_allowed_by_settings(notification.type, settings)
+    ]
+    for notification in visible_notifications:
         notification.is_read = True
     db.commit()
-    return ReadAllResponse(updated=len(notifications))
+    return ReadAllResponse(updated=len(visible_notifications))
 
 
 @router.delete("/notifications/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
