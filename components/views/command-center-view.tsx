@@ -117,6 +117,7 @@ const commandCopy = {
     en: "Command Center only organizes current system data. It does not predict outcomes or decide applications.",
     ja: "Command Center\u306f\u73fe\u5728\u306e\u30b7\u30b9\u30c6\u30e0\u30c7\u30fc\u30bf\u3092\u6574\u7406\u3059\u308b\u3060\u3051\u3067\u3059\u3002\u7d50\u679c\u306e\u4e88\u6e2c\u3084\u5fdc\u52df\u5224\u65ad\u306f\u884c\u3044\u307e\u305b\u3093\u3002",
   },
+  retry: { en: "Retry", ja: "\u518d\u8a66\u884c" },
   markDone: { en: "Mark Done", ja: "\u5b8c\u4e86" },
   addToTask: { en: "Add To Task", ja: "\u30bf\u30b9\u30af\u3078\u8ffd\u52a0" },
   added: { en: "Added", ja: "\u8ffd\u52a0\u6e08\u307f" },
@@ -145,6 +146,30 @@ const emptyAdvisor: AdvisorSummary = {
     recommendation: "No portfolio data yet.",
   },
   system_note: "CareerTrack analyzes and prioritizes only. The final decision is yours.",
+}
+
+const HIDDEN_IDS_KEY = "careertrack_command_center_hidden_ids"
+const DONE_IDS_KEY = "careertrack_command_center_done_ids"
+
+function loadIdSet(key: string): Set<string> {
+  if (typeof window === "undefined") return new Set()
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? new Set(parsed) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveIdSet(key: string, ids: Set<string>) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(key, JSON.stringify(Array.from(ids)))
+  } catch {
+    // storage unavailable (private mode, quota) — state stays session-only
+  }
 }
 
 function eventDate(event: NonNullable<DashboardSummary["upcoming_events"]>[number]) {
@@ -297,8 +322,8 @@ export function CommandCenterView() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [advisor, setAdvisor] = useState<AdvisorSummary>(emptyAdvisor)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
-  const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => loadIdSet(HIDDEN_IDS_KEY))
+  const [doneIds, setDoneIds] = useState<Set<string>>(() => loadIdSet(DONE_IDS_KEY))
   const [taskIds, setTaskIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -332,11 +357,19 @@ export function CommandCenterView() {
   }, [loadCommandCenter])
 
   const markDone = useCallback((action: AdvisorAction) => {
-    setDoneIds((current) => new Set(current).add(action.id))
+    setDoneIds((current) => {
+      const next = new Set(current).add(action.id)
+      saveIdSet(DONE_IDS_KEY, next)
+      return next
+    })
   }, [])
 
   const dismiss = useCallback((action: AdvisorAction) => {
-    setHiddenIds((current) => new Set(current).add(action.id))
+    setHiddenIds((current) => {
+      const next = new Set(current).add(action.id)
+      saveIdSet(HIDDEN_IDS_KEY, next)
+      return next
+    })
   }, [])
 
   const addToTask = useCallback(async (action: AdvisorAction) => {
@@ -389,8 +422,15 @@ export function CommandCenterView() {
       )}
 
       {error && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+        <div className="flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => loadCommandCenter()}
+            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-destructive/40 bg-background px-3 py-1.5 text-xs font-semibold text-destructive transition hover:bg-destructive/10"
+          >
+            {copy(language, commandCopy.retry)}
+          </button>
         </div>
       )}
 

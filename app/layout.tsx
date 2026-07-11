@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/providers/theme-provider'
+import { PwaRegister } from '@/components/providers/pwa-register'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -15,6 +16,12 @@ export const metadata: Metadata = {
   description:
     'A modern job-hunting & internship management workspace. インターン日程と選考進捗を一目で管理。',
   generator: 'v0.app',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CareerTrack',
+  },
   icons: {
     icon: [
       {
@@ -55,6 +62,7 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased">
         <ThemeProvider>{children}</ThemeProvider>
+        <PwaRegister />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

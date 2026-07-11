@@ -56,6 +56,12 @@ def _to_jst(value: datetime) -> datetime:
     return value.astimezone(JST)
 
 
+def _same_scheduled_at(a: datetime | None, b: datetime | None) -> bool:
+    if a is None or b is None:
+        return a == b
+    return _to_jst(a) == _to_jst(b)
+
+
 def is_current_or_future_notification(value: datetime | None, today: date | None = None) -> bool:
     if value is None:
         return True
@@ -141,11 +147,19 @@ def _sync_related_notifications(
     for index, spec in enumerate(specs):
         if index < len(existing):
             notification = existing[index]
+            spec_scheduled_at = spec["scheduled_at"]  # type: ignore[assignment]
+            changed = (
+                notification.title != str(spec["title"])
+                or notification.message != str(spec["message"])
+                or notification.type != str(spec["type"])
+                or not _same_scheduled_at(notification.scheduled_at, spec_scheduled_at)
+            )
             notification.title = str(spec["title"])
             notification.message = str(spec["message"])
             notification.type = str(spec["type"])
-            notification.scheduled_at = spec["scheduled_at"]  # type: ignore[assignment]
-            notification.is_sent = False
+            notification.scheduled_at = spec_scheduled_at
+            if changed:
+                notification.is_sent = False
         else:
             db.add(
                 Notification(

@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     login_lockout_minutes: int = 15
     password_reset_token_expire_minutes: int = 30
     backend_cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+    reminder_email_interval_minutes: int = 30
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

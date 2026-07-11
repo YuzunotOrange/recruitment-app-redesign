@@ -1020,14 +1020,31 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       </div>
 
       {loading && (
-        <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-          {text(language, copy.loadingDashboard)}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-live="polite" aria-busy="true">
+          <span className="sr-only">{text(language, copy.loadingDashboard)}</span>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="animate-pulse rounded-2xl border border-border bg-card p-4"
+            >
+              <div className="h-3 w-1/2 rounded bg-muted" />
+              <div className="mt-3 h-6 w-1/3 rounded bg-muted" />
+              <div className="mt-4 h-2 w-full rounded bg-muted" />
+            </div>
+          ))}
         </div>
       )}
 
       {error && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+        <div className="flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => loadSummary()}
+            className="inline-flex w-fit items-center gap-1.5 rounded-full border border-destructive/40 bg-background px-3 py-1.5 text-xs font-semibold text-destructive transition hover:bg-destructive/10"
+          >
+            {text(language, copy.retry)}
+          </button>
         </div>
       )}
 

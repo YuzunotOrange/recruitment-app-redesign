@@ -1,0 +1,25 @@
+{
+  "name": "CareerTrack — 就活管理システム",
+  "short_name": "CareerTrack",
+  "description": "インターン日程と選考進捗を一目で管理できる就活管理アプリ。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

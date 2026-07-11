@@ -23,6 +23,7 @@ export const copy = {
   calendar: { en: "Calendar", ja: "カレンダー" },
   settings: { en: "Settings", ja: "設定" },
   loadingDashboard: { en: "Loading dashboard...", ja: "ダッシュボードを読み込み中..." },
+  retry: { en: "Retry", ja: "再試行" },
   kpiCompanies: { en: "Companies", ja: "企業" },
   kpiEsReview: { en: "ES in review", ja: "ES確認中" },
   kpiInterviews: { en: "Interviews", ja: "面接" },

@@ -94,6 +94,7 @@ type ReminderSettings = {
   info_session_enabled: boolean
   offer_enabled: boolean
   weekly_summary_enabled: boolean
+  email_enabled: boolean
 }
 
 const defaultReminderSettings: ReminderSettings = {
@@ -103,6 +104,7 @@ const defaultReminderSettings: ReminderSettings = {
   info_session_enabled: true,
   offer_enabled: true,
   weekly_summary_enabled: false,
+  email_enabled: false,
 }
 
 export function SettingsView() {
@@ -217,6 +219,19 @@ export function SettingsView() {
 
       <Section icon={Bell} title={text(language, copy.notifications)} subtitle={secondaryText(language, copy.notifications)}>
         {settingsError && <p className="px-5 py-3 text-sm text-destructive">{settingsError}</p>}
+        <Row
+          label={text(language, { en: "Email reminders", ja: "メールでリマインド" })}
+          subtitle={text(language, {
+            en: "Send the reminders below to your account email too, not just in-app.",
+            ja: "以下のリマインドをアプリ内通知に加えてメールでも受け取ります。",
+          })}
+        >
+          <Toggle
+            checked={reminderSettings.email_enabled}
+            disabled={loading || settingsSaving}
+            onChange={(checked) => updateReminderSetting("email_enabled", checked)}
+          />
+        </Row>
         <Row label={text(language, { en: "ES deadline reminders", ja: "ES締切リマインド" })}>
           <Toggle
             checked={reminderSettings.es_deadline_enabled}

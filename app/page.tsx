@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Sidebar, MobileNav, type ViewKey } from "@/components/sidebar"
 import { CyberTicker } from "@/components/cyber-ticker"
 import { NotificationCenter } from "@/components/notification-center"
+import { QuickAdd } from "@/components/quick-add"
 import { RightPanel } from "@/components/right-panel"
 import { Dashboard } from "@/components/views/dashboard"
 import { CommandCenterView } from "@/components/views/command-center-view"
@@ -56,7 +57,10 @@ export default function Page() {
             <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{text(language, pageTitle)}</h1>
             {secondaryTitle && <p className="text-xs text-muted-foreground">{secondaryTitle}</p>}
           </div>
-          <NotificationCenter />
+          <div className="flex items-center gap-2">
+            <QuickAdd onNavigate={changeView} />
+            <NotificationCenter />
+          </div>
         </header>
         <CyberTicker />
 
