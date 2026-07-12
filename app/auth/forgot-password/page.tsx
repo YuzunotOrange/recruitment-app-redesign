@@ -8,8 +8,10 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
 import { requestPasswordReset } from "@/lib/auth"
+import { useHydrated } from "@/lib/use-hydrated"
 
 export default function ForgotPasswordPage() {
+  const hydrated = useHydrated()
   const [message, setMessage] = useState<string | null>(null)
   const [resetToken, setResetToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +63,7 @@ export default function ForgotPasswordPage() {
           </div>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={!hydrated || isSubmitting}>
           Send reset link
         </Button>
       </form>

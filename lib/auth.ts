@@ -94,6 +94,18 @@ export async function getCurrentUserWithRetry(attempts = 3, delayMs = 350): Prom
   throw lastError
 }
 
+export interface UserUpdatePayload {
+  name?: string
+  graduation_year?: number | null
+}
+
+export async function updateUser(payload: UserUpdatePayload): Promise<User> {
+  return apiRequest<User>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function updateUserTheme(theme: ThemeMode): Promise<User> {
   const user = await apiRequest<User>("/auth/me/theme", {
     method: "PATCH",

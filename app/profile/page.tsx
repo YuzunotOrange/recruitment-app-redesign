@@ -7,7 +7,7 @@ import { PasswordChangeForm } from "@/components/password-change-form"
 import { MobileNav, Sidebar, type ViewKey } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { apiRequest } from "@/lib/api"
-import { getCurrentUser, type User as AuthUser } from "@/lib/auth"
+import { getCurrentUser, updateUser, type User as AuthUser } from "@/lib/auth"
 import { signOut } from "@/lib/mock-auth"
 import { useRequireAuth } from "@/lib/use-require-auth"
 import { copy, secondaryText, text, useLanguagePreference } from "@/lib/language"
@@ -251,6 +251,18 @@ export default function ProfilePage() {
     router.replace("/auth/sign-in")
   }
 
+  const saveGraduationYear = async (year: number) => {
+    const previous = user
+    setUser((current) => (current ? { ...current, graduation_year: year } : current))
+    setProfileError(null)
+    try {
+      setUser(await updateUser({ graduation_year: year }))
+    } catch (err) {
+      setUser(previous)
+      setProfileError(err instanceof Error ? err.message : "Failed to update graduation year.")
+    }
+  }
+
   const saveProfile = async () => {
     setProfileSaving(true)
     setProfileError(null)
@@ -329,10 +341,16 @@ export default function ProfilePage() {
                 <input value={email} readOnly className={inputCls} />
               </Row>
               <Row {...label(copy.graduationYear)}>
-                <select value={graduationYear} disabled className={inputCls}>
-                  <option>2027</option>
-                  <option>2026</option>
-                  <option>2028</option>
+                <select
+                  value={graduationYear}
+                  onChange={(event) => saveGraduationYear(Number(event.target.value))}
+                  className={inputCls}
+                >
+                  {["2026", "2027", "2028", "2029", "2030"].map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
                 </select>
               </Row>
             </Section>

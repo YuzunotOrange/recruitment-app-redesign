@@ -405,11 +405,32 @@ def test_dashboard_summary_reflects_companies_events_and_deadlines(
     data = response.json()
     assert data["kpis"]["total_companies"] == 1
     assert data["kpis"]["es_in_review"] == 1
-    assert data["kpis"]["deadline_soon"] == 2
+    # The ES was already submitted, so only the event deadline counts toward deadline_soon.
+    assert data["kpis"]["deadline_soon"] == 1
     assert data["company_status_counts"]["es_submitted"] == 1
     assert data["industry_counts"]["it"] == 1
     assert any(event["id"] == briefing["id"] for event in data["upcoming_events"])
     assert any(deadline_item["id"] == f"event-{deadline['id']}" for deadline_item in data["upcoming_deadlines"])
+    assert all(not deadline_item["id"].startswith("company-") for deadline_item in data["upcoming_deadlines"])
+
+
+def test_dashboard_counts_es_deadline_only_before_submission(
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    today = datetime.now(UTC).date()
+    deadline = (today + timedelta(days=2)).isoformat()
+    create_company(client, auth_headers, name="Pending Corp", status="planned", es_deadline=deadline)
+    create_company(client, auth_headers, name="Submitted Corp", status="es_submitted", es_deadline=deadline)
+
+    response = client.get("/dashboard/summary", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["kpis"]["deadline_soon"] == 1
+    company_deadlines = [item for item in data["upcoming_deadlines"] if item["id"].startswith("company-")]
+    assert len(company_deadlines) == 1
+    assert company_deadlines[0]["company_name"] == "Pending Corp"
 
 
 def test_event_with_end_time_displays_time_range_in_dashboard(client: TestClient, auth_headers: dict[str, str]):

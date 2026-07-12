@@ -308,8 +308,13 @@ function eventMeta(event: ApiEvent, language: LanguageMode) {
   return `${company} / ${eventTimeLabel(event)}`
 }
 
+// ES deadlines only matter while the ES has not been submitted yet.
+function esDeadlinePending(company: ApiCompany) {
+  return company.status === "planned" || company.status === "applied"
+}
+
 function deadlineItemFromCompany(company: ApiCompany, language: LanguageMode): DetailItem | null {
-  if (!company.es_deadline) return null
+  if (!company.es_deadline || !esDeadlinePending(company)) return null
   const days = daysUntil(company.es_deadline)
   if (days < 0 || days > 7) return null
 
@@ -557,7 +562,7 @@ function getProgressScore(summary: DashboardSummary): ProgressScore {
 
 function getSoonestDeadline(companies: ApiCompany[], events: ApiEvent[]) {
   const companyDeadlines = companies
-    .filter((company) => company.es_deadline)
+    .filter((company) => company.es_deadline && esDeadlinePending(company))
     .map((company) => ({
       id: `company-${company.id}`,
       title: `${company.name} ES`,
@@ -817,9 +822,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
       .map((company) => ({
         id: `es-${company.id}`,
         title: company.name,
-        meta: company.es_deadline
-          ? `ES deadline ${formatLocalizedDate(company.es_deadline, language)}`
-          : text(language, { en: "ES in review", ja: "ES確認中" }),
+        meta: text(language, { en: "ES in review", ja: "ES確認中" }),
         date: company.es_deadline ?? undefined,
         tone: "warning" as Tone,
         badge: "ES",
@@ -881,7 +884,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: ViewKey) => void 
           badge: event.type === "deadline" ? text(language, { en: "Deadline", ja: "締切" }) : text(language, { en: "Today", ja: "今日" }),
         })),
       ...companies
-        .filter((company) => company.es_deadline && daysUntil(company.es_deadline) === 0)
+        .filter((company) => company.es_deadline && esDeadlinePending(company) && daysUntil(company.es_deadline) === 0)
         .map((company) => ({
           id: `today-company-${company.id}`,
           title: `${company.name} ES`,

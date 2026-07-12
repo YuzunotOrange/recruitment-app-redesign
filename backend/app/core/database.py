@@ -26,7 +26,7 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    from app.models import company, company_research, event, notification, task, user, user_profile  # noqa: F401
+    from app.models import company, company_research, event, notification, push_subscription, task, user, user_profile  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     ensure_user_columns()
@@ -136,4 +136,17 @@ def ensure_reminder_settings_columns() -> None:
                         f"ALTER TABLE reminder_settings "
                         f"ADD COLUMN {column_name} BOOLEAN NOT NULL DEFAULT {default_sql}"
                     )
+                )
+
+        if "weekly_summary_last_sent_at" not in existing_columns:
+            if dialect == "postgresql":
+                connection.execute(
+                    text(
+                        "ALTER TABLE reminder_settings "
+                        "ADD COLUMN IF NOT EXISTS weekly_summary_last_sent_at TIMESTAMP WITH TIME ZONE"
+                    )
+                )
+            else:
+                connection.execute(
+                    text("ALTER TABLE reminder_settings ADD COLUMN weekly_summary_last_sent_at DATETIME")
                 )

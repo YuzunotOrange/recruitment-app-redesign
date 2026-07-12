@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal, init_db
-from app.routers import advisor, auth, companies, dashboard, decision, events, notifications, profile, strategy, tasks
-from app.services.reminder_scheduler import send_due_reminder_emails
+from app.routers import advisor, auth, companies, dashboard, decision, events, notifications, profile, push, strategy, tasks
+from app.services.reminder_scheduler import run_scheduled_deliveries
 
 
 logger = logging.getLogger(__name__)
@@ -30,13 +30,13 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def _reminder_email_loop(interval_seconds: int) -> None:
+def _reminder_delivery_loop(interval_seconds: int) -> None:
     while not _reminder_email_stop_event.wait(interval_seconds):
         db = SessionLocal()
         try:
-            send_due_reminder_emails(db)
+            run_scheduled_deliveries(db)
         except Exception:
-            logger.exception("Reminder email loop failed")
+            logger.exception("Reminder delivery loop failed")
         finally:
             db.close()
 
@@ -44,9 +44,9 @@ def _reminder_email_loop(interval_seconds: int) -> None:
 @app.on_event("startup")
 def startup() -> None:
     init_db()
-    if settings.smtp_host:
-        interval_seconds = max(60, settings.reminder_email_interval_minutes * 60)
-        threading.Thread(target=_reminder_email_loop, args=(interval_seconds,), daemon=True).start()
+    # Email needs SMTP config, but web push works out of the box, so always run the loop.
+    interval_seconds = max(60, settings.reminder_email_interval_minutes * 60)
+    threading.Thread(target=_reminder_delivery_loop, args=(interval_seconds,), daemon=True).start()
 
 
 @app.on_event("shutdown")
@@ -62,5 +62,6 @@ app.include_router(dashboard.router)
 app.include_router(decision.router)
 app.include_router(notifications.router)
 app.include_router(profile.router)
+app.include_router(push.router)
 app.include_router(strategy.router)
 app.include_router(tasks.router)

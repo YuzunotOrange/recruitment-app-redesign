@@ -8,8 +8,10 @@ import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
 import { confirmPasswordReset } from "@/lib/auth"
+import { useHydrated } from "@/lib/use-hydrated"
 
 export default function ResetPasswordPage() {
+  const hydrated = useHydrated()
   const [initialToken, setInitialToken] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +58,7 @@ export default function ResetPasswordPage() {
         <AuthField label="New password" ja="New password" name="new_password" type="password" autoComplete="new-password" required />
         {message && <p className="text-sm text-muted-foreground">{message}</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={!hydrated || isSubmitting}>
           Update password
         </Button>
       </form>

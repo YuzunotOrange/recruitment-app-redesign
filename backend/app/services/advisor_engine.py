@@ -13,6 +13,7 @@ from app.schemas.advisor import (
     AdvisorRiskMonitor,
     AdvisorSummary,
 )
+from app.services.notifications import ES_PENDING_STATUSES
 
 
 STRATEGY_POSITIONS = ("Reach", "Core", "Safe", "Hold")
@@ -163,6 +164,8 @@ class AdvisorEngine:
     ) -> list[AdvisorDeadlineAlert]:
         alerts: list[AdvisorDeadlineAlert] = []
         for company in companies:
+            if company.status not in ES_PENDING_STATUSES:
+                continue
             if company.es_deadline and today <= company.es_deadline <= week_end:
                 alerts.append(
                     AdvisorDeadlineAlert(

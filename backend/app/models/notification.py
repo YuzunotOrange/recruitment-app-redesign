@@ -41,6 +41,7 @@ class ReminderSettings(Base):
     info_session_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     offer_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     weekly_summary_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    weekly_summary_last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     email_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     push_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

@@ -57,10 +57,7 @@ export default function Page() {
             <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{text(language, pageTitle)}</h1>
             {secondaryTitle && <p className="text-xs text-muted-foreground">{secondaryTitle}</p>}
           </div>
-          <div className="flex items-center gap-2">
-            <QuickAdd onNavigate={changeView} />
-            <NotificationCenter />
-          </div>
+          <NotificationCenter />
         </header>
         <CyberTicker />
 
@@ -84,6 +81,7 @@ export default function Page() {
           {view !== "command" && <RightPanel />}
         </div>
         <MobileNav active={view} onChange={changeView} />
+        <QuickAdd onNavigate={changeView} />
       </div>
     </div>
   )

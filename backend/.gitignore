@@ -3,3 +3,4 @@ app.db
 *.pyc
 __pycache__/
 .env
+vapid_private.pem

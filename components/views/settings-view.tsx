@@ -6,7 +6,8 @@ import { Bell, Globe, Info, LogOut, Palette, User } from "lucide-react"
 import { PasswordChangeForm } from "@/components/password-change-form"
 import { Button } from "@/components/ui/button"
 import { apiRequest } from "@/lib/api"
-import { getCurrentUser, logout, updateUserTheme, type User as AuthUser } from "@/lib/auth"
+import { getCurrentUser, logout, updateUser, updateUserTheme, type User as AuthUser } from "@/lib/auth"
+import { disablePushNotifications, enablePushNotifications, isPushSupported } from "@/lib/push"
 import { copy, secondaryText, setLanguagePreference, text, useLanguagePreference, type LanguageMode } from "@/lib/language"
 import { requestNotificationRefresh } from "@/lib/notification-events"
 import { setThemePreference, useThemePreference, type ThemeMode } from "@/lib/theme"
@@ -95,6 +96,7 @@ type ReminderSettings = {
   offer_enabled: boolean
   weekly_summary_enabled: boolean
   email_enabled: boolean
+  push_enabled: boolean
 }
 
 const defaultReminderSettings: ReminderSettings = {
@@ -105,6 +107,7 @@ const defaultReminderSettings: ReminderSettings = {
   offer_enabled: true,
   weekly_summary_enabled: false,
   email_enabled: false,
+  push_enabled: false,
 }
 
 export function SettingsView() {
@@ -148,6 +151,39 @@ export function SettingsView() {
       active = false
     }
   }, [router])
+
+  const togglePushNotifications = async (enabled: boolean) => {
+    setSettingsSaving(true)
+    setSettingsError(null)
+    try {
+      if (enabled) {
+        await enablePushNotifications()
+      } else {
+        await disablePushNotifications()
+      }
+      const saved = await apiRequest<ReminderSettings>("/reminder-settings", {
+        method: "PUT",
+        body: JSON.stringify({ push_enabled: enabled }),
+      })
+      setReminderSettings({ ...defaultReminderSettings, ...saved })
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : "Failed to update push notifications.")
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  const saveGraduationYear = async (year: number) => {
+    const previous = user
+    setUser((current) => (current ? { ...current, graduation_year: year } : current))
+    setSettingsError(null)
+    try {
+      setUser(await updateUser({ graduation_year: year }))
+    } catch (err) {
+      setUser(previous)
+      setSettingsError(err instanceof Error ? err.message : "Failed to update graduation year.")
+    }
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -206,7 +242,18 @@ export function SettingsView() {
           <input value={email} readOnly className={inputCls} />
         </Row>
         <Row {...label(copy.graduationYear)}>
-          <input value={graduationYear || "-"} readOnly className={inputCls} />
+          <select
+            value={graduationYear || "2027"}
+            disabled={loading}
+            onChange={(event) => saveGraduationYear(Number(event.target.value))}
+            className={inputCls}
+          >
+            {["2026", "2027", "2028", "2029", "2030"].map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
         </Row>
         <PasswordChangeForm language={language} />
         <div className="flex justify-end px-5 py-3.5">
@@ -230,6 +277,23 @@ export function SettingsView() {
             checked={reminderSettings.email_enabled}
             disabled={loading || settingsSaving}
             onChange={(checked) => updateReminderSetting("email_enabled", checked)}
+          />
+        </Row>
+        <Row
+          label={text(language, { en: "Push notifications", ja: "プッシュ通知" })}
+          subtitle={text(language, {
+            en: isPushSupported()
+              ? "Get reminders as native notifications on this device."
+              : "This browser does not support push notifications.",
+            ja: isPushSupported()
+              ? "この端末にネイティブ通知でリマインドを受け取ります。"
+              : "このブラウザはプッシュ通知に対応していません。",
+          })}
+        >
+          <Toggle
+            checked={reminderSettings.push_enabled}
+            disabled={loading || settingsSaving || !isPushSupported()}
+            onChange={(checked) => togglePushNotifications(checked)}
           />
         </Row>
         <Row label={text(language, { en: "ES deadline reminders", ja: "ES締切リマインド" })}>

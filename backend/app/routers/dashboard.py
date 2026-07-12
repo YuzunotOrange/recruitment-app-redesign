@@ -10,7 +10,7 @@ from app.models.company import Company
 from app.models.event import Event
 from app.models.task import Task
 from app.models.user import User
-from app.services.notifications import today_jst
+from app.services.notifications import ES_PENDING_STATUSES, today_jst
 from app.schemas.dashboard import (
     DashboardKpis,
     DashboardSummary,
@@ -88,7 +88,9 @@ def dashboard_summary(
     company_deadline_soon = sum(
         1
         for company in companies
-        if isinstance(company.es_deadline, date) and today <= company.es_deadline <= soon
+        if company.status in ES_PENDING_STATUSES
+        and isinstance(company.es_deadline, date)
+        and today <= company.es_deadline <= soon
     )
 
     event_rows = list(
@@ -107,7 +109,9 @@ def dashboard_summary(
     interview_companies = sum(status_counts.get(status, 0) for status in INTERVIEW_STATUSES)
     internship_events = sum(1 for event in event_rows if event.type == "intern")
     today_events = sum(1 for event in event_rows if event.start_date <= today <= event.end_date)
-    today_company_deadlines = sum(1 for company in companies if company.es_deadline == today)
+    today_company_deadlines = sum(
+        1 for company in companies if company.status in ES_PENDING_STATUSES and company.es_deadline == today
+    )
     task_rows = list(db.scalars(select(Task).where(Task.user_id == current_user.id)).all())
     incomplete_tasks = sum(1 for task in task_rows if task.status != "completed")
     overdue_tasks = sum(
@@ -151,7 +155,9 @@ def dashboard_summary(
             deadline=company.es_deadline.isoformat(),
         )
         for company in companies
-        if isinstance(company.es_deadline, date) and company.es_deadline >= today
+        if company.status in ES_PENDING_STATUSES
+        and isinstance(company.es_deadline, date)
+        and company.es_deadline >= today
     ]
     event_deadlines = [
         DashboardUpcomingDeadline(

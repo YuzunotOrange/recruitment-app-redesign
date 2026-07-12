@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = None
     smtp_use_tls: bool = True
     reminder_email_interval_minutes: int = 30
+    vapid_private_key_file: str = "./vapid_private.pem"
+    vapid_subject: str = "mailto:no-reply@careertrack.local"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

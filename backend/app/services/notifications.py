@@ -10,6 +10,8 @@ from app.models.notification import Notification, ReminderSettings
 
 DEADLINE_NOTIFICATION_TYPES = {"deadline", "offer"}
 EVENT_NOTIFICATION_TYPES = {"interview", "internship", "offer", "custom"}
+# Statuses where the ES has not been submitted yet — deadline reminders only make sense here.
+ES_PENDING_STATUSES = {"planned", "applied"}
 JST = timezone(timedelta(hours=9), "JST")
 
 
@@ -182,7 +184,7 @@ def sync_company_notifications(company: Company, db: Session) -> None:
     today = today_jst()
     settings = get_or_create_reminder_settings(db, company.user_id)
 
-    if company.es_deadline and settings.es_deadline_enabled:
+    if company.es_deadline and settings.es_deadline_enabled and company.status in ES_PENDING_STATUSES:
         days_until = days_until_jst(company.es_deadline, today)
         enabled_days = _enabled_deadline_days(settings)
         should_notify = days_until == 0 or days_until in enabled_days

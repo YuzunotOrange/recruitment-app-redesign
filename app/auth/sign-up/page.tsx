@@ -9,10 +9,12 @@ import { AuthField } from "@/components/auth/auth-field"
 import { Button } from "@/components/ui/button"
 import { getCurrentUserWithRetry, register } from "@/lib/auth"
 import { copy, text, useLanguagePreference } from "@/lib/language"
+import { useHydrated } from "@/lib/use-hydrated"
 
 export default function SignUpPage() {
   const router = useRouter()
   const language = useLanguagePreference()
+  const hydrated = useHydrated()
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -80,7 +82,7 @@ export default function SignUpPage() {
           <span>{text(language, copy.termsAgree)}</span>
         </label>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={!hydrated || isSubmitting}>
           {text(language, copy.signUp)}
         </Button>
       </form>

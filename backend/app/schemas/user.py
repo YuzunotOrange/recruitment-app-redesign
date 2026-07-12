@@ -27,3 +27,8 @@ class UserCreate(BaseModel):
 
 class UserThemeUpdate(BaseModel):
     theme: ThemeMode
+
+
+class UserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    graduation_year: int | None = Field(default=None, ge=1900, le=2100)

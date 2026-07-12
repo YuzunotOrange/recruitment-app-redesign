@@ -52,9 +52,21 @@ function safeDate(value: string) {
   return Number.isNaN(date.getTime()) ? new Date() : date
 }
 
+const typeFilters: { key: EventType | "all"; en: string; ja: string }[] = [
+  { key: "all", en: "All", ja: "すべて" },
+  { key: "intern", en: "Intern", ja: "インターン" },
+  { key: "interview", en: "Interview", ja: "面接" },
+  { key: "briefing", en: "Briefing", ja: "説明会" },
+  { key: "test", en: "Test", ja: "テスト" },
+  { key: "deadline", en: "Deadline", ja: "締切" },
+  { key: "offer", en: "Offer", ja: "内定" },
+  { key: "other", en: "Other", ja: "その他" },
+]
+
 export function TimelineView() {
   const [events, setEvents] = useState<ApiEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null)
+  const [typeFilter, setTypeFilter] = useState<EventType | "all">("all")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const language = useLanguagePreference()
@@ -108,8 +120,11 @@ export function TimelineView() {
   }
 
   const rows = useMemo(
-    () => [...events].sort((a, b) => a.start_date.localeCompare(b.start_date) || a.title.localeCompare(b.title)),
-    [events],
+    () =>
+      events
+        .filter((event) => typeFilter === "all" || event.type === typeFilter)
+        .sort((a, b) => a.start_date.localeCompare(b.start_date) || a.title.localeCompare(b.title)),
+    [events, typeFilter],
   )
 
   const { days, rangeStart, totalDays, months } = useMemo(() => {
@@ -143,6 +158,23 @@ export function TimelineView() {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {typeFilters.map((filter) => (
+          <button
+            key={filter.key}
+            type="button"
+            onClick={() => setTypeFilter(filter.key)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              typeFilter === filter.key
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {text(language, filter)}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-4 rounded-sm bg-accent" />

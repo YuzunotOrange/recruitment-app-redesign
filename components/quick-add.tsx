@@ -125,14 +125,19 @@ export function QuickAdd({ onNavigate }: { onNavigate: (view: ViewKey) => void }
 
   return (
     <>
-      <Button type="button" size="sm" onClick={() => setOpen(true)}>
-        <Plus className="h-4 w-4" />
-        <span className="hidden sm:inline">{text(language, copy.quickAdd)}</span>
-      </Button>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={text(language, copy.quickAdd)}
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-[8500] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:scale-105 hover:shadow-xl md:bottom-8 md:right-8 md:h-auto md:w-auto md:gap-2 md:rounded-full md:px-5 md:py-3"
+      >
+        <Plus className="h-6 w-6 md:h-4 md:w-4" />
+        <span className="hidden text-sm font-medium md:inline">{text(language, copy.quickAdd)}</span>
+      </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[9500] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
           onClick={close}
         >
           <div
